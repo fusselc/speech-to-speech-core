@@ -58,6 +58,12 @@ def save_wav(samples: np.ndarray, filepath: str) -> str:
     return filepath
 
 
+def build_recording_filepath() -> str:
+    """Create a timestamped destination path in ``RECORDINGS_DIR``."""
+    filename = timestamped_filename("recording", "wav")
+    return os.path.join(ensure_dir(RECORDINGS_DIR), filename)
+
+
 def record_to_file(duration: float = RECORD_DURATION) -> str:
     """Convenience wrapper: record audio and immediately save it to disk.
 
@@ -71,6 +77,4 @@ def record_to_file(duration: float = RECORD_DURATION) -> str:
         Absolute path to the saved WAV file.
     """
     samples = record_audio(duration)
-    filename = timestamped_filename("recording", "wav")
-    filepath = os.path.join(ensure_dir(RECORDINGS_DIR), filename)
-    return save_wav(samples, filepath)
+    return save_wav(samples, build_recording_filepath())

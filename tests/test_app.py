@@ -26,7 +26,9 @@ class TestRunPipeline:
 
     def _run_with_mocks(self, transcript: str = "hello world"):
         """Helper: run the pipeline with all external calls mocked."""
-        with patch("app.record_to_file", return_value="/tmp/fake.wav") as mock_record, \
+        with patch("app.record_audio", return_value=[1, 2, 3]) as mock_record, \
+             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
+             patch("app.save_wav", return_value="/tmp/fake.wav"), \
              patch("app.transcribe_file", return_value=transcript) as mock_transcribe, \
              patch("app.generate_response", return_value=f"I heard: {transcript}") as mock_respond, \
              patch("app.speak_text") as mock_speak:
@@ -60,6 +62,10 @@ class TestRunPipeline:
 
         def fake_record():
             call_order.append("record")
+            return [1, 2, 3]
+
+        def fake_save(samples, path):
+            call_order.append("save")
             return "/tmp/fake.wav"
 
         def fake_transcribe(path):
@@ -73,11 +79,26 @@ class TestRunPipeline:
         def fake_speak(text):
             call_order.append("speak")
 
-        with patch("app.record_to_file", side_effect=fake_record), \
+        with patch("app.record_audio", side_effect=fake_record), \
+             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
+             patch("app.save_wav", side_effect=fake_save), \
              patch("app.transcribe_file", side_effect=fake_transcribe), \
              patch("app.generate_response", side_effect=fake_respond), \
              patch("app.speak_text", side_effect=fake_speak):
             from app import run_pipeline
             run_pipeline()
 
-        assert call_order == ["record", "transcribe", "respond", "speak"]
+        assert call_order == ["record", "save", "transcribe", "respond", "speak"]
+
+    def test_latency_summary_is_printed(self, capsys):
+        self._run_with_mocks()
+        out = capsys.readouterr().out
+        for key in (
+            "recording_ms",
+            "save_ms",
+            "transcription_ms",
+            "response_ms",
+            "synthesis_ms",
+            "total_ms",
+        ):
+            assert key in out

@@ -26,7 +26,8 @@ _SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
-from audio_input import record_to_file
+from audio_input import build_recording_filepath, record_audio, save_wav
+from latency_logger import LatencyLogger
 from transcribe import transcribe_file
 from responder import generate_response
 from synthesize import speak_text
@@ -34,22 +35,26 @@ from synthesize import speak_text
 
 def run_pipeline() -> None:
     """Execute one full speech-to-speech turn."""
+    latency = LatencyLogger()
+
     print("=" * 50)
     print("  Speech-to-Speech Core  |  Phase 1")
     print("=" * 50)
 
     # Step 1 & 2 — Record microphone audio and save WAV
-    wav_path = record_to_file()
+    samples = latency.measure("recording_ms", record_audio)
+    wav_path = latency.measure("save_ms", save_wav, samples, build_recording_filepath())
 
     # Step 3 & 4 — Transcribe and print
-    transcript = transcribe_file(wav_path)
+    transcript = latency.measure("transcription_ms", transcribe_file, wav_path)
     print(f"\nTranscript: {transcript}\n")
 
     # Step 5 — Generate response
-    response = generate_response(transcript)
+    response = latency.measure("response_ms", generate_response, transcript)
 
     # Step 6 — Speak response
-    speak_text(response)
+    latency.measure("synthesis_ms", speak_text, response)
+    latency.print_summary()
 
     print("=" * 50)
     print("  Done.")

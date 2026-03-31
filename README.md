@@ -29,6 +29,7 @@ speech-to-speech-core/
 │   ├── transcribe.py   # Whisper speech-to-text
 │   ├── responder.py    # Response generation ("I heard: …")
 │   ├── synthesize.py   # Local TTS via pyttsx3 (OpenVoice hook included)
+│   ├── latency_logger.py # Per-stage pipeline latency instrumentation
 │   └── utils.py        # Shared helpers (ensure_dir, timestamped_filename)
 ├── tests/
 │   ├── test_responder.py
@@ -84,6 +85,9 @@ python src/app.py
 When you see `Recording for 5.0 second(s)… speak now.` — say something into
 your microphone. After the recording finishes, Whisper will transcribe it,
 the transcript will be printed, and the TTS engine will speak the response.
+At the end of each run, a latency summary is printed with:
+`recording_ms`, `save_ms`, `transcription_ms`, `response_ms`,
+`synthesis_ms`, and `total_ms`.
 
 ### Configuration
 
