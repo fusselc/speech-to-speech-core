@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Speech-to-speech runtime artifacts
+recordings/*.wav
+outputs/*.wav
+
+# Whisper model cache
+~/.cache/whisper/
