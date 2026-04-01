@@ -16,8 +16,23 @@ SAMPLE_RATE: int = 16_000
 # Number of audio channels (1 = mono, which Whisper expects)
 CHANNELS: int = 1
 
-# How many seconds to record per utterance
+# Maximum number of seconds to record per utterance (streaming capture may end
+# earlier when voice activity detection sees trailing silence).
 RECORD_DURATION: float = 5.0
+
+# Streaming chunk duration in seconds. Smaller chunks improve VAD responsiveness
+# but increase per-chunk overhead (typical range: 0.05–0.5s).
+STREAM_CHUNK_SECONDS: float = 0.2
+
+# Voice activity threshold on raw int16 amplitude (range: 0–32767).
+# 500 is a conservative default that usually filters low background noise.
+VAD_AMPLITUDE_THRESHOLD: int = 500
+
+# Stop recording once this many seconds of silence have followed detected speech.
+VAD_SILENCE_SECONDS: float = 1.0
+
+# Require this many voiced chunks before silence can end the recording.
+VAD_MIN_VOICE_CHUNKS: int = 1
 
 # ---------------------------------------------------------------------------
 # File paths

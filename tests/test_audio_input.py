@@ -26,41 +26,93 @@ sys.modules.setdefault("sounddevice", _sd_stub)
 class TestRecordAudio:
     """Tests for audio_input.record_audio."""
 
-    def test_calls_sd_rec_with_correct_params(self):
+    def _fake_stream(self, chunks):
+        stream = MagicMock()
+        stream.read = MagicMock(side_effect=[(chunk, False) for chunk in chunks])
+        stream.__enter__.return_value = stream
+        stream.__exit__.return_value = None
+        return stream
+
+    def test_stream_opened_with_correct_params(self):
         import config
 
-        mock_samples = np.zeros((config.SAMPLE_RATE * 5, 1), dtype="int16")
-        with patch("sounddevice.rec", return_value=mock_samples) as mock_rec, \
-             patch("sounddevice.wait"):
+        chunks = [np.zeros((100, 1), dtype="int16")]
+        stream = self._fake_stream(chunks)
+        with patch("sounddevice.InputStream", return_value=stream) as mock_stream:
             from audio_input import record_audio
-            record_audio(duration=5.0)
+            record_audio(duration=0.2)
 
-        mock_rec.assert_called_once_with(
-            frames=int(5.0 * config.SAMPLE_RATE),
+        mock_stream.assert_called_once_with(
             samplerate=config.SAMPLE_RATE,
             channels=config.CHANNELS,
             dtype="int16",
         )
 
-    def test_returns_squeezed_1d_array(self):
-        # sd.rec returns shape (frames, channels); result should be 1-D
-        mock_2d = np.zeros((1000, 1), dtype="int16")
-        with patch("sounddevice.rec", return_value=mock_2d), \
-             patch("sounddevice.wait"):
+    def test_returns_1d_concatenated_int16_array(self):
+        chunks = [
+            np.array([[1], [2], [3]], dtype="int16"),
+            np.array([[4], [5]], dtype="int16"),
+        ]
+        stream = self._fake_stream(chunks)
+        with patch("sounddevice.InputStream", return_value=stream), \
+             patch("audio_input._chunk_has_voice", side_effect=[True, False]):
             from audio_input import record_audio
-            result = record_audio(duration=0.1)
+            result = record_audio(duration=0.4)
 
         assert result.ndim == 1
-        assert len(result) == 1000
+        assert result.dtype == np.int16
+        np.testing.assert_array_equal(result, np.array([1, 2, 3, 4, 5], dtype="int16"))
 
-    def test_wait_is_called(self):
-        mock_samples = np.zeros((100, 1), dtype="int16")
-        with patch("sounddevice.rec", return_value=mock_samples), \
-             patch("sounddevice.wait") as mock_wait:
+    def test_stops_after_trailing_silence_once_voice_detected(self):
+        voice = np.array([[1000], [1000]], dtype="int16")
+        silence = np.array([[0], [0]], dtype="int16")
+        chunks = [voice, silence, silence, voice]
+        stream = self._fake_stream(chunks)
+
+        with patch("sounddevice.InputStream", return_value=stream), \
+             patch("audio_input.STREAM_CHUNK_SECONDS", 0.2), \
+             patch("audio_input.VAD_SILENCE_SECONDS", 0.4):
             from audio_input import record_audio
-            record_audio(duration=0.1)
+            result = record_audio(duration=1.0)
 
-        mock_wait.assert_called_once()
+        # First voice + two silent chunks; fourth chunk should not be consumed.
+        assert stream.read.call_count == 3
+        np.testing.assert_array_equal(
+            result, np.array([1000, 1000, 0, 0, 0, 0], dtype="int16")
+        )
+
+    def test_does_not_stop_early_on_initial_silence(self):
+        silence = np.array([[0], [0]], dtype="int16")
+        chunks = [silence, silence]
+        stream = self._fake_stream(chunks)
+
+        with patch("sounddevice.InputStream", return_value=stream), \
+             patch("audio_input.STREAM_CHUNK_SECONDS", 0.2), \
+             patch("audio_input.VAD_SILENCE_SECONDS", 0.2):
+            from audio_input import record_audio
+            record_audio(duration=0.4)
+
+        # Reads full max duration because voice was never detected.
+        assert stream.read.call_count == 2
+
+    def test_chunk_has_voice_uses_peak_amplitude_threshold(self):
+        from audio_input import _chunk_has_voice
+
+        assert _chunk_has_voice(np.array([0, 100, -499], dtype="int16"), threshold=500) is False
+        assert _chunk_has_voice(np.array([0, 500], dtype="int16"), threshold=500) is True
+        assert _chunk_has_voice(np.array([0, -500], dtype="int16"), threshold=500) is True
+
+    def test_chunk_has_voice_returns_false_for_empty_chunk(self):
+        from audio_input import _chunk_has_voice
+
+        assert _chunk_has_voice(np.array([], dtype="int16")) is False
+
+    def test_should_finalize_for_silence_requires_prior_voice(self):
+        from audio_input import _should_finalize_for_silence
+
+        assert _should_finalize_for_silence(0, 5, 3, min_voice_chunks=1) is False
+        assert _should_finalize_for_silence(1, 2, 3, min_voice_chunks=1) is False
+        assert _should_finalize_for_silence(1, 3, 3, min_voice_chunks=1) is True
 
 
 class TestSaveWav:

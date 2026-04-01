@@ -46,3 +46,18 @@ def test_print_summary_includes_required_keys(capsys):
         "total_ms",
     ):
         assert key in out
+
+
+def test_latency_tracker_prints_average_and_latest(capsys):
+    from latency_logger import LatencyTracker
+
+    tracker = LatencyTracker()
+    tracker.record_turn(10.0)
+    tracker.record_turn(30.0)
+    tracker.print_rolling_summary()
+    out = capsys.readouterr().out
+
+    assert "rolling_summary" in out
+    assert "latest_turn_ms=30.00" in out
+    assert "avg_turn_ms=20.00" in out
+    assert "turns=2" in out

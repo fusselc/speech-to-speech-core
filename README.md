@@ -117,6 +117,7 @@ When the program starts:
 4. A response is generated
 5. TTS speaks the response
 6. Latency is printed
+7. Rolling latency stats (latest turn + running average) are printed each turn
 
 By default the pipeline runs in loop mode.
 
@@ -138,7 +139,11 @@ All settings live in `src/config.py`.
 
 | Setting            | Default  | Description                   |
 | ------------------ | -------- | ----------------------------- |
-| `RECORD_DURATION`  | `5.0`    | Recording duration in seconds |
+| `RECORD_DURATION`  | `5.0`    | Maximum recording duration in seconds |
+| `STREAM_CHUNK_SECONDS` | `0.2` | Streaming capture chunk size (seconds) |
+| `VAD_AMPLITUDE_THRESHOLD` | `500` | Voice activity amplitude threshold |
+| `VAD_SILENCE_SECONDS` | `1.0` | Trailing silence required to auto-stop |
+| `VAD_MIN_VOICE_CHUNKS` | `1` | Minimum voiced chunks before silence stop is allowed |
 | `WHISPER_MODEL`    | `"base"` | Whisper model size            |
 | `WHISPER_LANGUAGE` | `None`   | Auto-detect language          |
 | `TTS_RATE`         | `180`    | Speech speed                  |
@@ -153,7 +158,7 @@ All settings live in `src/config.py`.
 ==================================================
 Speech-to-Speech Core | Phase 1
 ==================================================
-[audio_input] Recording for 5.0 second(s)… speak now.
+[audio_input] Streaming capture started (max 5.0s, silence stop 1.0s)… speak now.
 [audio_input] Saved recording to: recordings/turn_0001.wav
 [transcribe] Transcript: What time is it?
 [responder] Response: I heard: What time is it?
@@ -182,6 +187,8 @@ Latency is tracked per stage:
 * `response_ms`
 * `synthesis_ms`
 * `total_ms`
+* `latest_turn_ms` (rolling summary)
+* `avg_turn_ms` (rolling summary)
 
 This makes optimization measurable.
 

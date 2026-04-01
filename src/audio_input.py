@@ -11,35 +11,103 @@ Future streaming integration point:
 """
 
 import os
+from collections.abc import Iterator
 
 import numpy as np
 import sounddevice as sd
 from scipy.io.wavfile import write as wav_write
 
-from config import CHANNELS, RECORD_DURATION, RECORDINGS_DIR, SAMPLE_RATE
+from config import (
+    CHANNELS,
+    RECORD_DURATION,
+    RECORDINGS_DIR,
+    SAMPLE_RATE,
+    STREAM_CHUNK_SECONDS,
+    VAD_AMPLITUDE_THRESHOLD,
+    VAD_MIN_VOICE_CHUNKS,
+    VAD_SILENCE_SECONDS,
+)
 from utils import ensure_dir, timestamped_filename
 
 
+def _chunk_has_voice(chunk: np.ndarray, threshold: int = VAD_AMPLITUDE_THRESHOLD) -> bool:
+    """Return True when *chunk* contains speech-like amplitude."""
+    if chunk.size == 0:
+        return False
+    # Cast to int32 so abs(-32768) is handled safely without int16 overflow.
+    peak = int(np.max(np.abs(chunk.astype(np.int32))))
+    return peak >= threshold
+
+
+def _stream_microphone_chunks(
+    duration: float = RECORD_DURATION,
+    chunk_seconds: float = STREAM_CHUNK_SECONDS,
+) -> Iterator[np.ndarray]:
+    """Yield microphone audio chunks from an input stream up to *duration*."""
+    if duration <= 0:
+        raise ValueError("duration must be > 0")
+    if chunk_seconds <= 0:
+        raise ValueError("chunk_seconds must be > 0")
+    frames_per_chunk = max(1, int(chunk_seconds * SAMPLE_RATE))
+    max_chunks = max(1, int(np.ceil(duration / chunk_seconds)))
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16") as stream:
+        for _ in range(max_chunks):
+            chunk, overflowed = stream.read(frames_per_chunk)
+            if overflowed:
+                print("[audio_input] Warning: input overflow detected during capture.")
+            yield np.asarray(chunk).squeeze()
+
+
+def _should_finalize_for_silence(
+    voiced_chunks: int,
+    trailing_silence_chunks: int,
+    silence_chunk_limit: int,
+    min_voice_chunks: int = VAD_MIN_VOICE_CHUNKS,
+) -> bool:
+    """Return True when recording should stop due to sustained silence."""
+    return voiced_chunks >= min_voice_chunks and trailing_silence_chunks >= silence_chunk_limit
+
+
 def record_audio(duration: float = RECORD_DURATION) -> np.ndarray:
-    """Capture ``duration`` seconds of audio from the default microphone.
+    """Capture microphone audio using streaming chunks plus simple VAD.
 
     Args:
-        duration: Recording length in seconds.
+        duration: Maximum recording length in seconds.
 
     Returns:
         A 1-D NumPy array of int16 PCM samples.
     """
-    print(f"[audio_input] Recording for {duration:.1f} second(s)… speak now.")
-    samples = sd.rec(
-        frames=int(duration * SAMPLE_RATE),
-        samplerate=SAMPLE_RATE,
-        channels=CHANNELS,
-        dtype="int16",
+    print(
+        f"[audio_input] Streaming capture started "
+        f"(max {duration:.1f}s, silence stop {VAD_SILENCE_SECONDS:.1f}s)… speak now."
     )
-    sd.wait()  # Block until recording is complete
+    silence_chunk_limit = max(1, int(np.ceil(VAD_SILENCE_SECONDS / STREAM_CHUNK_SECONDS)))
+    chunks: list[np.ndarray] = []
+    voiced_chunks = 0
+    trailing_silence_chunks = 0
+
+    for chunk in _stream_microphone_chunks(duration=duration, chunk_seconds=STREAM_CHUNK_SECONDS):
+        chunks.append(chunk)
+
+        if _chunk_has_voice(chunk):
+            voiced_chunks += 1
+            trailing_silence_chunks = 0
+        else:
+            trailing_silence_chunks += 1
+
+        if _should_finalize_for_silence(
+            voiced_chunks=voiced_chunks,
+            trailing_silence_chunks=trailing_silence_chunks,
+            silence_chunk_limit=silence_chunk_limit,
+            min_voice_chunks=VAD_MIN_VOICE_CHUNKS,
+        ):
+            break
+
+    if not chunks:
+        return np.array([], dtype=np.int16)
+
     print("[audio_input] Recording complete.")
-    # sd.rec returns shape (frames, channels); squeeze to 1-D for mono
-    return samples.squeeze()
+    return np.concatenate(chunks).astype(np.int16, copy=False)
 
 
 def save_wav(samples: np.ndarray, filepath: str) -> str:

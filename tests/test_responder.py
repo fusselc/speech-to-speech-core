@@ -29,10 +29,9 @@ class TestGenerateResponse:
         result = generate_response("")
         assert "didn't catch" in result.lower() or "sorry" in result.lower()
 
-    def test_whitespace_only_is_truthy_so_returns_i_heard(self):
-        # A string of spaces is truthy in Python; responder echoes it as-is
+    def test_whitespace_only_returns_fallback(self):
         result = generate_response("   ")
-        assert result.startswith("I heard:")
+        assert "didn't catch" in result.lower() or "sorry" in result.lower()
 
     def test_response_is_string(self):
         result = generate_response("test")
@@ -41,3 +40,7 @@ class TestGenerateResponse:
     def test_punctuation_preserved(self):
         result = generate_response("How are you?")
         assert "How are you?" in result
+
+    def test_transcript_is_trimmed_before_echo(self):
+        result = generate_response("  hello world  ")
+        assert result == "I heard: hello world"

@@ -20,6 +20,10 @@ class LatencyLogger:
         self._stages_ms[stage_name] = (time.perf_counter() - started) * 1000.0
         return result
 
+    def total_stages_ms(self) -> float:
+        """Return sum of measured stage latencies."""
+        return sum(self._stages_ms.values())
+
     def print_summary(self) -> None:
         """Print a clear one-run latency summary."""
         total_ms = (time.perf_counter() - self._start) * 1000.0
@@ -33,3 +37,35 @@ class LatencyLogger:
         print(f"[latency] response_ms={self._stages_ms.get('response_ms', 0.0):.2f}")
         print(f"[latency] synthesis_ms={self._stages_ms.get('synthesis_ms', 0.0):.2f}")
         print(f"[latency] total_ms={total_ms:.2f}")
+
+
+@dataclass
+class LatencyTracker:
+    """Track rolling and average latency across multiple turns."""
+
+    _total_ms_history: list[float] = field(default_factory=list)
+
+    def record_turn(self, total_ms: float) -> None:
+        """Record total latency for one completed turn."""
+        self._total_ms_history.append(total_ms)
+
+    @property
+    def turn_count(self) -> int:
+        """Return number of recorded turns."""
+        return len(self._total_ms_history)
+
+    def average_total_ms(self) -> float:
+        """Return average total latency across recorded turns."""
+        if not self._total_ms_history:
+            return 0.0
+        return sum(self._total_ms_history) / len(self._total_ms_history)
+
+    def print_rolling_summary(self) -> None:
+        """Print rolling latency summary after each turn."""
+        if not self._total_ms_history:
+            return
+        latest_ms = self._total_ms_history[-1]
+        print("[latency] rolling_summary:")
+        print(f"[latency] latest_turn_ms={latest_ms:.2f}")
+        print(f"[latency] avg_turn_ms={self.average_total_ms():.2f}")
+        print(f"[latency] turns={self.turn_count}")

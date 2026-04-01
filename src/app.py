@@ -33,13 +33,19 @@ if _SRC_DIR not in sys.path:
 
 from audio_input import build_recording_filepath, record_audio, save_wav
 from config import LOOP_MODE, MAX_TURNS
-from latency_logger import LatencyLogger
+from latency_logger import LatencyLogger, LatencyTracker
 from transcribe import transcribe_file
 from responder import generate_response
 from synthesize import speak_text
+from turn_controller import TurnController
 
 
-def run_pipeline() -> None:
+def _safe_total_ms(latency: LatencyLogger) -> float:
+    """Compute best-effort total from recorded stage timings."""
+    return latency.total_stages_ms()
+
+
+def run_pipeline(latency_tracker: LatencyTracker | None = None) -> None:
     """Execute one full speech-to-speech turn."""
 
     print("=" * 50)
@@ -48,11 +54,26 @@ def run_pipeline() -> None:
 
     latency = LatencyLogger()
     # Step 1 & 2 — Record microphone audio and save WAV
-    samples = latency.measure("recording_ms", record_audio)
+    try:
+        samples = latency.measure("recording_ms", record_audio)
+    except Exception as exc:
+        print(f"[audio_input] Recording failed: {exc}")
+        print("[app] Skipping turn safely.")
+        return
     wav_path = latency.measure("save_ms", save_wav, samples, build_recording_filepath())
 
     # Step 3 & 4 — Transcribe and print
     transcript = latency.measure("transcription_ms", transcribe_file, wav_path)
+    if not transcript.strip():
+        print("[app] Empty transcript detected. Skipping response and synthesis.")
+        latency.print_summary()
+        if latency_tracker is not None:
+            latency_tracker.record_turn(_safe_total_ms(latency))
+            latency_tracker.print_rolling_summary()
+        print("=" * 50)
+        print("  Done.")
+        print("=" * 50)
+        return
     print(f"\nTranscript: {transcript}\n")
 
     # Step 5 — Generate response
@@ -61,6 +82,10 @@ def run_pipeline() -> None:
     # Step 6 — Speak response
     latency.measure("synthesis_ms", speak_text, response)
     latency.print_summary()
+    if latency_tracker is not None:
+        total_ms = _safe_total_ms(latency)
+        latency_tracker.record_turn(total_ms)
+        latency_tracker.print_rolling_summary()
 
     print("=" * 50)
     print("  Done.")
@@ -74,18 +99,16 @@ def run_app() -> None:
     is reached (MAX_TURNS == 0 means unlimited). A separator is printed
     between turns so output from consecutive runs is easy to distinguish.
     """
-    if not LOOP_MODE:
-        run_pipeline()
-        return
-
-    print("Loop mode active. Press Ctrl+C to exit.\n")
-    turn = 0
+    controller = TurnController(loop_mode=LOOP_MODE, max_turns=MAX_TURNS)
+    latency_tracker = LatencyTracker()
+    if LOOP_MODE:
+        print("Loop mode active. Press Ctrl+C to exit.\n")
     try:
-        while MAX_TURNS == 0 or turn < MAX_TURNS:
-            if turn > 0:
+        while controller.should_continue():
+            if controller.turn_count > 0:
                 print("\n" + "-" * 50 + "\n")
-            run_pipeline()
-            turn += 1
+            run_pipeline(latency_tracker=latency_tracker)
+            controller.mark_turn_completed()
     except KeyboardInterrupt:
         print("\n\nExiting. Goodbye!")
 
