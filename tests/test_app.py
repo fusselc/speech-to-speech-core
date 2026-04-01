@@ -36,7 +36,7 @@ class TestRunPipeline:
             run_pipeline()
             return mock_record, mock_transcribe, mock_respond, mock_speak
 
-    def test_record_to_file_is_called(self):
+    def test_record_audio_is_called(self):
         mock_record, _, _, _ = self._run_with_mocks()
         mock_record.assert_called_once()
 
@@ -102,3 +102,48 @@ class TestRunPipeline:
             "total_ms",
         ):
             assert key in out
+
+    def test_each_pipeline_stage_executes_once(self):
+        stage_counts = {
+            "record": 0,
+            "save": 0,
+            "transcribe": 0,
+            "respond": 0,
+            "speak": 0,
+        }
+
+        def fake_record():
+            stage_counts["record"] += 1
+            return [1, 2, 3]
+
+        def fake_save(samples, path):
+            stage_counts["save"] += 1
+            return "/tmp/fake.wav"
+
+        def fake_transcribe(path):
+            stage_counts["transcribe"] += 1
+            return "hello"
+
+        def fake_respond(text):
+            stage_counts["respond"] += 1
+            return "I heard: hello"
+
+        def fake_speak(text):
+            stage_counts["speak"] += 1
+
+        with patch("app.record_audio", side_effect=fake_record), \
+             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
+             patch("app.save_wav", side_effect=fake_save), \
+             patch("app.transcribe_file", side_effect=fake_transcribe), \
+             patch("app.generate_response", side_effect=fake_respond), \
+             patch("app.speak_text", side_effect=fake_speak):
+            from app import run_pipeline
+            run_pipeline()
+
+        assert stage_counts == {
+            "record": 1,
+            "save": 1,
+            "transcribe": 1,
+            "respond": 1,
+            "speak": 1,
+        }
