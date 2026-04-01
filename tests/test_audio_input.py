@@ -15,6 +15,8 @@ import pytest
 # Make src/ importable when running pytest from the project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+import config  # noqa: E402 — must come after sys.path.insert
+
 # ---------------------------------------------------------------------------
 # Stub sounddevice before audio_input imports it — PortAudio is not available
 # in headless / CI environments.
@@ -146,3 +148,79 @@ class TestRecordToFile:
 
         basename = os.path.basename(captured_path[0])
         assert basename.startswith("recording_")
+
+
+class TestRecordAudioChunks:
+    """Tests for audio_input.record_audio_chunks."""
+
+    def _make_mock_stream(self, chunk_frames: int, num_chunks: int):
+        """Return a mock sd.InputStream whose read() yields int16 arrays."""
+        mock_stream = MagicMock()
+        # Each read() call returns (chunk_array, overflowed_bool)
+        mock_stream.read.return_value = (
+            np.zeros((chunk_frames, 1), dtype="int16"),
+            False,
+        )
+        mock_stream.__enter__ = MagicMock(return_value=mock_stream)
+        mock_stream.__exit__ = MagicMock(return_value=False)
+        return mock_stream
+
+    def test_yields_correct_number_of_chunks(self):
+        chunk_dur = 1.0
+        total_dur = 3.0
+        expected_chunks = round(total_dur / chunk_dur)
+        chunk_frames = int(chunk_dur * config.SAMPLE_RATE)
+
+        mock_stream = self._make_mock_stream(chunk_frames, expected_chunks)
+        with patch("sounddevice.InputStream", return_value=mock_stream):
+            from audio_input import record_audio_chunks
+            chunks = list(record_audio_chunks(total_duration=total_dur, chunk_duration=chunk_dur))
+
+        assert len(chunks) == expected_chunks
+
+    def test_each_chunk_is_1d(self):
+        chunk_dur = 1.0
+        chunk_frames = int(chunk_dur * config.SAMPLE_RATE)
+
+        mock_stream = self._make_mock_stream(chunk_frames, 2)
+        with patch("sounddevice.InputStream", return_value=mock_stream):
+            from audio_input import record_audio_chunks
+            chunks = list(record_audio_chunks(total_duration=2.0, chunk_duration=chunk_dur))
+
+        for chunk in chunks:
+            assert chunk.ndim == 1
+
+    def test_each_chunk_has_correct_length(self):
+        chunk_dur = 0.5
+        chunk_frames = int(chunk_dur * config.SAMPLE_RATE)
+
+        mock_stream = self._make_mock_stream(chunk_frames, 2)
+        with patch("sounddevice.InputStream", return_value=mock_stream):
+            from audio_input import record_audio_chunks
+            chunks = list(record_audio_chunks(total_duration=1.0, chunk_duration=chunk_dur))
+
+        for chunk in chunks:
+            assert len(chunk) == chunk_frames
+
+    def test_returns_generator(self):
+        import types
+        chunk_frames = int(1.0 * config.SAMPLE_RATE)
+
+        mock_stream = self._make_mock_stream(chunk_frames, 1)
+        with patch("sounddevice.InputStream", return_value=mock_stream):
+            from audio_input import record_audio_chunks
+            result = record_audio_chunks(total_duration=1.0, chunk_duration=1.0)
+
+        assert isinstance(result, types.GeneratorType)
+
+    def test_minimum_one_chunk_when_duration_is_very_short(self):
+        chunk_dur = 5.0
+        chunk_frames = int(chunk_dur * config.SAMPLE_RATE)
+
+        mock_stream = self._make_mock_stream(chunk_frames, 1)
+        with patch("sounddevice.InputStream", return_value=mock_stream):
+            from audio_input import record_audio_chunks
+            # total_duration < chunk_duration → still yields at least 1 chunk
+            chunks = list(record_audio_chunks(total_duration=0.1, chunk_duration=chunk_dur))
+
+        assert len(chunks) == 1

@@ -19,6 +19,11 @@ CHANNELS: int = 1
 # How many seconds to record per utterance
 RECORD_DURATION: float = 5.0
 
+# Duration of each audio chunk yielded by record_audio_chunks (seconds).
+# Smaller values reduce latency; larger values improve transcription accuracy.
+# This is the primary knob to tune when streaming transcription is added.
+CHUNK_DURATION: float = 1.0
+
 # ---------------------------------------------------------------------------
 # File paths
 # ---------------------------------------------------------------------------

@@ -120,6 +120,28 @@ No other files need to change.
 
 ---
 
+## Future streaming architecture
+
+The pipeline is designed to evolve toward real-time, chunk-based audio
+processing.  The groundwork is already in place:
+
+1. **`record_audio_chunks()`** in `src/audio_input.py` opens a live
+   `sd.InputStream` and yields fixed-size PCM chunks while the speaker is
+   still talking.  `CHUNK_DURATION` in `config.py` controls the chunk size.
+
+2. The current `record_to_file` → Whisper path will stay in place until a
+   streaming transcription consumer is ready.
+
+3. **Phase 2 wiring** (not yet implemented):
+   - Feed each chunk from `record_audio_chunks()` to a streaming-capable
+     transcription backend (e.g. faster-whisper's streaming API or a WebSocket
+     endpoint).
+   - Handle partial transcripts incrementally inside `app.py`.
+   - Remove the WAV-file intermediate step once low-latency transcription is
+     stable.
+
+---
+
 ## Extending the pipeline
 
 | Goal | File to change |
