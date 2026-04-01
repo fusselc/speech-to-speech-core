@@ -32,7 +32,12 @@ speech-to-speech-core/
 │   ├── latency_logger.py # Per-stage pipeline latency instrumentation
 │   └── utils.py        # Shared helpers (ensure_dir, timestamped_filename)
 ├── tests/
+│   ├── test_app.py
+│   ├── test_audio_input.py
 │   ├── test_responder.py
+│   ├── test_synthesize.py
+│   ├── test_transcribe.py
+│   ├── test_latency_logger.py
 │   └── test_utils.py
 ├── recordings/         # Auto-populated with captured WAVs (gitignored)
 ├── outputs/            # Auto-populated with TTS output WAVs (gitignored)

@@ -5,6 +5,7 @@ scipy>=1.11.0
 
 # Speech-to-text (Whisper)
 openai-whisper>=20231117
+torch>=2.0.0
 
 # Text-to-speech (local, offline)
 # NOTE: pyttsx3 is a placeholder. Replace with OpenVoice for higher-quality synthesis.
