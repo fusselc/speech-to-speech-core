@@ -199,6 +199,8 @@ Use `transcription_ms` to compare model sizes (`tiny` vs `base` etc.) and `total
 ## Tests
 
 ```bash
+pip install -r requirements.txt
+pip install pytest
 pytest tests/
 ```
 
