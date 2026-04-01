@@ -147,3 +147,24 @@ class TestRunPipeline:
             "respond": 1,
             "speak": 1,
         }
+
+
+class TestRunApp:
+    """Tests for app.run_app loop behavior."""
+
+    def test_single_turn_when_loop_mode_disabled(self):
+        with patch("app.LOOP_MODE", False), patch("app.run_pipeline") as mock_run:
+            from app import run_app
+            run_app()
+
+        mock_run.assert_called_once()
+
+    def test_loop_mode_repeats_until_keyboard_interrupt(self, capsys):
+        with patch("app.LOOP_MODE", True), patch("app.run_pipeline", side_effect=[None, KeyboardInterrupt]) as mock_run:
+            from app import run_app
+            run_app()
+
+        out = capsys.readouterr().out
+        assert "-" * 50 in out
+        assert "[app] Exiting. Goodbye." in out
+        assert mock_run.call_count == 2

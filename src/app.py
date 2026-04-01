@@ -31,6 +31,7 @@ from latency_logger import LatencyLogger
 from transcribe import transcribe_file
 from responder import generate_response
 from synthesize import speak_text
+from config import LOOP_MODE
 
 
 def run_pipeline() -> None:
@@ -61,5 +62,21 @@ def run_pipeline() -> None:
     print("=" * 50)
 
 
+def run_app() -> None:
+    """Run the app once or in conversational loop mode."""
+    turn = 1
+    try:
+        if LOOP_MODE:
+            while True:
+                if turn > 1:
+                    print("\n" + "-" * 50 + "\n")
+                run_pipeline()
+                turn += 1
+        else:
+            run_pipeline()
+    except KeyboardInterrupt:
+        print("\n[app] Exiting. Goodbye.")
+
+
 if __name__ == "__main__":
-    run_pipeline()
+    run_app()

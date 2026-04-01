@@ -6,7 +6,7 @@ Phase 1 speech-to-speech AI core in Python: microphone recording, Whisper transc
 
 ## Overview
 
-The pipeline runs one full speech-to-speech turn:
+The default pipeline runs in conversational loop mode (multiple turns until you exit):
 
 ```
 Microphone → WAV file → Whisper → transcript → responder → TTS → speaker
@@ -85,9 +85,10 @@ python src/app.py
 When you see `Recording for 5.0 second(s)… speak now.` — say something into
 your microphone. After the recording finishes, Whisper will transcribe it,
 the transcript will be printed, and the TTS engine will speak the response.
-At the end of each run, a latency summary is printed with:
-`recording_ms`, `save_ms`, `transcription_ms`, `response_ms`,
-`synthesis_ms`, and `total_ms`.
+The app then starts the next turn automatically. Press `Ctrl+C` to exit
+cleanly. A separator line is printed between turns, and each turn prints a
+latency summary with: `recording_ms`, `save_ms`, `transcription_ms`,
+`response_ms`, `synthesis_ms`, and `total_ms`.
 
 ### Configuration
 
@@ -99,6 +100,7 @@ All settings are in `src/config.py`. Key options:
 | `WHISPER_MODEL` | `"base"` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
 | `WHISPER_LANGUAGE` | `None` | Language code (`None` = auto-detect, `"en"` = English) |
 | `TTS_RATE` | `180` | Speech rate in words per minute |
+| `LOOP_MODE` | `True` | Run continuously until `Ctrl+C`; set `False` for one turn |
 
 ---
 
