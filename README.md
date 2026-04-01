@@ -112,6 +112,10 @@ When the program starts, it records a short utterance from your microphone. Afte
 4. The response is spoken aloud via local TTS
 5. Latency metrics are printed
 
+By default the pipeline runs in **loop mode**: after each turn it immediately starts a new recording. Press **Ctrl+C** to exit gracefully.
+
+To run a single turn only, set `LOOP_MODE = False` in `src/config.py`.
+
 At the end of each run, latency is reported for:
 
 * `recording_ms`
@@ -133,6 +137,8 @@ All settings are in `src/config.py`.
 | `WHISPER_MODEL`    | `"base"` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
 | `WHISPER_LANGUAGE` | `None`   | Language code (`None` = auto-detect, `"en"` = English)          |
 | `TTS_RATE`         | `180`    | Speech rate in words per minute                                 |
+| `LOOP_MODE`        | `True`   | Repeat the pipeline after each turn until Ctrl+C or `MAX_TURNS` |
+| `MAX_TURNS`        | `0`      | Maximum turns in loop mode (`0` = unlimited)                    |
 
 ---
 
@@ -216,7 +222,6 @@ Tests are written to remain CI-friendly and avoid hard dependency on local audio
 
 Planned next steps:
 
-* conversational loop support
 * faster transcription backend
 * streaming audio input
 * advanced response generation
