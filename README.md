@@ -117,6 +117,7 @@ When the program starts:
 4. A response is generated
 5. TTS speaks the response
 6. Latency is printed
+7. Rolling latency stats (latest turn + running average) are printed each turn
 
 By default the pipeline runs in loop mode.
 
@@ -186,6 +187,8 @@ Latency is tracked per stage:
 * `response_ms`
 * `synthesis_ms`
 * `total_ms`
+* `latest_turn_ms` (rolling summary)
+* `avg_turn_ms` (rolling summary)
 
 This makes optimization measurable.
 

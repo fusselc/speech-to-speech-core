@@ -58,6 +58,16 @@ def _stream_microphone_chunks(
             yield np.asarray(chunk).squeeze()
 
 
+def _should_finalize_for_silence(
+    voiced_chunks: int,
+    trailing_silence_chunks: int,
+    silence_chunk_limit: int,
+    min_voice_chunks: int = VAD_MIN_VOICE_CHUNKS,
+) -> bool:
+    """Return True when recording should stop due to sustained silence."""
+    return voiced_chunks >= min_voice_chunks and trailing_silence_chunks >= silence_chunk_limit
+
+
 def record_audio(duration: float = RECORD_DURATION) -> np.ndarray:
     """Capture microphone audio using streaming chunks plus simple VAD.
 
@@ -85,7 +95,12 @@ def record_audio(duration: float = RECORD_DURATION) -> np.ndarray:
         else:
             trailing_silence_chunks += 1
 
-        if voiced_chunks >= VAD_MIN_VOICE_CHUNKS and trailing_silence_chunks >= silence_chunk_limit:
+        if _should_finalize_for_silence(
+            voiced_chunks=voiced_chunks,
+            trailing_silence_chunks=trailing_silence_chunks,
+            silence_chunk_limit=silence_chunk_limit,
+            min_voice_chunks=VAD_MIN_VOICE_CHUNKS,
+        ):
             break
 
     if not chunks:

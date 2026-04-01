@@ -1,19 +1,37 @@
 """
 responder.py — Generate a text response from a transcript.
 
-Phase 1 keeps this deliberately simple: the response is just a formatted
-echo of what was heard.  The function signature is designed so that a
-more sophisticated LLM-backed responder can be dropped in later without
-changing any call sites.
-
-Future integration points:
-  - Replace ``generate_response`` body with an LLM call (e.g. OpenAI Chat
-    Completions, a local llama.cpp model, etc.).
-  - Add conversation history / agent memory as a parameter.
+The default behavior remains deterministic and simple while exposing a
+pluggable strategy interface so an LLM-backed responder can be introduced
+later without changing app-level call sites.
 """
 
+from typing import Protocol
 
-def generate_response(transcript: str) -> str:
+
+class ResponseGenerator(Protocol):
+    """Interface for response generation backends."""
+
+    def generate(self, transcript: str) -> str:
+        """Return a response for a transcript."""
+
+
+class EchoResponseGenerator:
+    """Default deterministic response generator."""
+
+    def generate(self, transcript: str) -> str:
+        cleaned = transcript.strip()
+        if not cleaned:
+            return "Sorry, I didn't catch that. Could you please repeat?"
+        response = f"I heard: {cleaned}"
+        print(f"[responder] Response: {response!r}")
+        return response
+
+
+_default_generator: ResponseGenerator = EchoResponseGenerator()
+
+
+def generate_response(transcript: str, generator: ResponseGenerator | None = None) -> str:
     """Build a reply string from a transcript.
 
     Args:
@@ -22,9 +40,5 @@ def generate_response(transcript: str) -> str:
     Returns:
         A response string ready to be passed to the TTS synthesiser.
     """
-    if not transcript:
-        return "Sorry, I didn't catch that. Could you please repeat?"
-
-    response = f"I heard: {transcript}"
-    print(f"[responder] Response: {response!r}")
-    return response
+    active_generator = generator or _default_generator
+    return active_generator.generate(transcript)

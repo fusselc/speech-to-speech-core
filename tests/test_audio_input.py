@@ -107,6 +107,13 @@ class TestRecordAudio:
 
         assert _chunk_has_voice(np.array([], dtype="int16")) is False
 
+    def test_should_finalize_for_silence_requires_prior_voice(self):
+        from audio_input import _should_finalize_for_silence
+
+        assert _should_finalize_for_silence(0, 5, 3, min_voice_chunks=1) is False
+        assert _should_finalize_for_silence(1, 2, 3, min_voice_chunks=1) is False
+        assert _should_finalize_for_silence(1, 3, 3, min_voice_chunks=1) is True
+
 
 class TestSaveWav:
     """Tests for audio_input.save_wav."""

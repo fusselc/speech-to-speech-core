@@ -56,6 +56,20 @@ class TestRunPipeline:
         # Ensure no exceptions are raised during a normal run
         self._run_with_mocks()
 
+    def test_pipeline_handles_microphone_failure_without_crash(self, capsys):
+        with patch("app.record_audio", side_effect=RuntimeError("mic error")), \
+             patch("app.build_recording_filepath"), \
+             patch("app.save_wav"), \
+             patch("app.transcribe_file"), \
+             patch("app.generate_response"), \
+             patch("app.speak_text"):
+            from app import run_pipeline
+            run_pipeline()
+
+        out = capsys.readouterr().out
+        assert "Recording failed" in out
+        assert "Skipping turn safely" in out
+
     def test_all_steps_called_in_order(self):
         """Verify the four pipeline steps fire in the correct sequence."""
         call_order = []
@@ -147,6 +161,21 @@ class TestRunPipeline:
             "respond": 1,
             "speak": 1,
         }
+
+    def test_empty_transcript_skips_response_and_synthesis(self, capsys):
+        with patch("app.record_audio", return_value=[1, 2, 3]), \
+             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
+             patch("app.save_wav", return_value="/tmp/fake.wav"), \
+             patch("app.transcribe_file", return_value="   "), \
+             patch("app.generate_response") as mock_respond, \
+             patch("app.speak_text") as mock_speak:
+            from app import run_pipeline
+            run_pipeline()
+
+        mock_respond.assert_not_called()
+        mock_speak.assert_not_called()
+        out = capsys.readouterr().out
+        assert "Empty transcript detected" in out
 
 
 class TestRunApp:

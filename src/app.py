@@ -40,6 +40,17 @@ from synthesize import speak_text
 from turn_controller import TurnController
 
 
+def _safe_total_ms(latency: LatencyLogger) -> float:
+    """Compute best-effort total from recorded stage timings."""
+    return (
+        latency._stages_ms.get("recording_ms", 0.0)
+        + latency._stages_ms.get("save_ms", 0.0)
+        + latency._stages_ms.get("transcription_ms", 0.0)
+        + latency._stages_ms.get("response_ms", 0.0)
+        + latency._stages_ms.get("synthesis_ms", 0.0)
+    )
+
+
 def run_pipeline(latency_tracker: LatencyTracker | None = None) -> None:
     """Execute one full speech-to-speech turn."""
 
@@ -63,9 +74,7 @@ def run_pipeline(latency_tracker: LatencyTracker | None = None) -> None:
         print("[app] Empty transcript detected. Skipping response and synthesis.")
         latency.print_summary()
         if latency_tracker is not None:
-            latency_tracker.record_turn((latency._stages_ms.get("recording_ms", 0.0)
-                                         + latency._stages_ms.get("save_ms", 0.0)
-                                         + latency._stages_ms.get("transcription_ms", 0.0)))
+            latency_tracker.record_turn(_safe_total_ms(latency))
             latency_tracker.print_rolling_summary()
         print("=" * 50)
         print("  Done.")
@@ -80,13 +89,7 @@ def run_pipeline(latency_tracker: LatencyTracker | None = None) -> None:
     latency.measure("synthesis_ms", speak_text, response)
     latency.print_summary()
     if latency_tracker is not None:
-        total_ms = (
-            latency._stages_ms.get("recording_ms", 0.0)
-            + latency._stages_ms.get("save_ms", 0.0)
-            + latency._stages_ms.get("transcription_ms", 0.0)
-            + latency._stages_ms.get("response_ms", 0.0)
-            + latency._stages_ms.get("synthesis_ms", 0.0)
-        )
+        total_ms = _safe_total_ms(latency)
         latency_tracker.record_turn(total_ms)
         latency_tracker.print_rolling_summary()
 

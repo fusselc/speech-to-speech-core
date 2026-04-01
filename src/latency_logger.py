@@ -62,6 +62,6 @@ class LatencyTracker:
             return
         latest_ms = self._total_ms_history[-1]
         print("[latency] rolling_summary:")
-        print(f"[latency] latest_total_ms={latest_ms:.2f}")
-        print(f"[latency] average_total_ms={self.average_total_ms():.2f}")
+        print(f"[latency] latest_turn_ms={latest_ms:.2f}")
+        print(f"[latency] avg_turn_ms={self.average_total_ms():.2f}")
         print(f"[latency] turns={self.turn_count}")
