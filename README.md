@@ -12,19 +12,21 @@ This repository implements a single-turn speech-to-speech pipeline:
 Microphone → WAV file → Whisper → transcript → responder → TTS → speaker
 ```
 
-Phase 1 design goals:
-- keep each stage isolated in its own module
-- keep functions small and readable
-- centralize settings in `src/config.py`
-- make the pipeline runnable first, then extensible
+### Design Goals
 
-Current module responsibilities:
-- `audio_input.py`: microphone capture + WAV persistence
-- `transcribe.py`: Whisper transcription
-- `responder.py`: simple text response generation
-- `synthesize.py`: local text-to-speech playback
-- `latency_logger.py`: per-stage and total latency timing
-- `app.py`: orchestration of the full turn
+- Keep each stage isolated in its own module
+- Keep functions small and readable
+- Centralize settings in `src/config.py`
+- Make the pipeline runnable first, then extensible
+
+### Module Responsibilities
+
+- `audio_input.py` — microphone capture + WAV persistence
+- `transcribe.py` — Whisper speech-to-text
+- `responder.py` — simple text response generation
+- `synthesize.py` — local text-to-speech playback
+- `latency_logger.py` — per-stage and total latency timing
+- `app.py` — orchestration of the full turn
 
 ---
 
@@ -63,6 +65,7 @@ speech-to-speech-core/
 ## Setup Instructions
 
 ### Requirements
+
 - Python 3.10 or newer
 - Working microphone
 - On Linux, `espeak` for `pyttsx3`:
@@ -71,7 +74,8 @@ speech-to-speech-core/
 sudo apt-get install espeak
 ```
 
-### Install project
+### Install
+
 ```bash
 # 1) Clone
 git clone https://github.com/fusselc/speech-to-speech-core.git
@@ -93,13 +97,12 @@ pip install -r requirements.txt
 
 ## Run Instructions
 
-Run one full speech-to-speech turn:
-
 ```bash
 python src/app.py
 ```
 
 Typical flow:
+
 1. App prints a header and prompts for recording
 2. Microphone audio is captured for the configured duration
 3. WAV file is written to `recordings/`
@@ -107,8 +110,6 @@ Typical flow:
 5. Responder generates a simple reply
 6. TTS speaks reply locally
 7. Latency summary is printed
-
-### Configuration
 
 All settings live in `src/config.py`. Key options:
 
@@ -122,8 +123,6 @@ All settings live in `src/config.py`. Key options:
 ---
 
 ## Expected Output Example
-
-Example terminal output for a single turn:
 
 ```text
 ==================================================
@@ -150,36 +149,23 @@ Response: I heard: What time is it?
 
 ## Latency Metrics Explanation
 
-The pipeline logs per-stage timing in milliseconds (`ms`) after each turn to make performance visible and tunable.
+The pipeline logs per-stage timing in milliseconds after each turn.
 
-- **`recording_ms`**  
-  Time spent capturing microphone input (typically near the configured `RECORD_DURATION`).
+- **`recording_ms`** — time spent capturing microphone input (typically near `RECORD_DURATION`)
+- **`save_ms`** — time to write captured audio to a WAV file on disk
+- **`transcription_ms`** — time Whisper spends converting WAV to text; depends on model size and hardware
+- **`response_ms`** — time to generate response text in `responder.py` (minimal in Phase 1)
+- **`synthesis_ms`** — time for the local TTS engine to synthesize and play the response
+- **`total_ms`** — end-to-end wall-clock time for the full turn
 
-- **`save_ms`**  
-  Time to write the captured audio to a WAV file on disk.
-
-- **`transcription_ms`**  
-  Time Whisper spends converting WAV audio to text. Depends on model size, hardware, and audio length.
-
-- **`response_ms`**  
-  Time to generate response text in `responder.py` (currently minimal in Phase 1).
-
-- **`synthesis_ms`**  
-  Time for the local TTS engine to synthesize and play the response.
-
-- **`total_ms`**  
-  End-to-end wall-clock time for the full turn (includes all stages plus orchestration overhead).
-
-How to use these metrics:
-- Compare model choices (`tiny` vs `base` etc.) by watching `transcription_ms`
-- Evaluate user-perceived delay via `total_ms`
-- Identify bottlenecks before adding Phase 2 features
+Use `transcription_ms` to compare model sizes (`tiny` vs `base` etc.) and `total_ms` to evaluate user-perceived latency.
 
 ---
 
 ## Future Roadmap
 
 ### Phase 1 (current)
+
 - [x] Microphone recording
 - [x] WAV saving
 - [x] Whisper transcription
@@ -190,14 +176,14 @@ How to use these metrics:
 - [x] Setup/run documentation
 
 ### Next phases (planned)
-- Expanded test coverage for audio/transcription boundaries (stubs/mocks are already in place; more edge cases planned)
+
+- Expanded test coverage for audio/transcription edge cases (stubs/mocks already in place)
 - Optional model/runtime tuning paths in configuration
-- Cleaner extension hooks for advanced synthesizers (including OpenVoice)
-- Better observability and benchmark scripts for repeatable latency tracking
+- Extension hooks for advanced synthesizers (including OpenVoice)
+- Benchmark scripts for repeatable latency tracking
 
-### Explicitly out of current scope
+### Out of current scope
 
-Not included yet (by design):
 - Streaming partial transcripts
 - Translation
 - Voice cloning
@@ -215,16 +201,4 @@ Not included yet (by design):
 pytest tests/
 ```
 
-Tests are designed to remain CI-friendly and avoid hard dependency on local audio hardware by stubbing/mocking sounddevice, pyttsx3, and Whisper where necessary.
-
----
-
-## Extending the pipeline
-
-| Goal | File to change |
-|---|---|
-| Stream audio in real time | `audio_input.py` |
-| Upgrade transcription | `transcribe.py` |
-| Add LLM-backed replies | `responder.py` |
-| Upgrade TTS / voice cloning | `synthesize.py` |
-| Change file paths or model | `config.py` |
+Tests are CI-friendly and stub/mock `sounddevice`, `pyttsx3`, and Whisper to avoid requiring local audio hardware.
