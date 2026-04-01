@@ -182,7 +182,7 @@ Use `transcription_ms` to compare model sizes (`tiny` vs `base` etc.) and `total
 - Extension hooks for advanced synthesizers (including OpenVoice)
 - Benchmark scripts for repeatable latency tracking
 
-### Out of current scope
+### Explicitly Out Of Scope
 
 - Streaming partial transcripts
 - Translation
