@@ -21,10 +21,11 @@ CHANNELS: int = 1
 RECORD_DURATION: float = 5.0
 
 # Streaming chunk duration in seconds. Smaller chunks improve VAD responsiveness
-# but increase per-chunk overhead.
+# but increase per-chunk overhead (typical range: 0.05–0.5s).
 STREAM_CHUNK_SECONDS: float = 0.2
 
-# Voice activity threshold on raw int16 amplitude.
+# Voice activity threshold on raw int16 amplitude (range: 0–32767).
+# 500 is a conservative default that usually filters low background noise.
 VAD_AMPLITUDE_THRESHOLD: int = 500
 
 # Stop recording once this many seconds of silence have followed detected speech.

@@ -100,6 +100,12 @@ class TestRecordAudio:
 
         assert _chunk_has_voice(np.array([0, 100, -499], dtype="int16"), threshold=500) is False
         assert _chunk_has_voice(np.array([0, 500], dtype="int16"), threshold=500) is True
+        assert _chunk_has_voice(np.array([0, -500], dtype="int16"), threshold=500) is True
+
+    def test_chunk_has_voice_returns_false_for_empty_chunk(self):
+        from audio_input import _chunk_has_voice
+
+        assert _chunk_has_voice(np.array([], dtype="int16")) is False
 
 
 class TestSaveWav:

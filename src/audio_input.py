@@ -34,6 +34,7 @@ def _chunk_has_voice(chunk: np.ndarray, threshold: int = VAD_AMPLITUDE_THRESHOLD
     """Return True when *chunk* contains speech-like amplitude."""
     if chunk.size == 0:
         return False
+    # Cast to int32 so abs(-32768) is handled safely without int16 overflow.
     peak = int(np.max(np.abs(chunk.astype(np.int32))))
     return peak >= threshold
 
@@ -43,6 +44,10 @@ def _stream_microphone_chunks(
     chunk_seconds: float = STREAM_CHUNK_SECONDS,
 ) -> Iterator[np.ndarray]:
     """Yield microphone audio chunks from an input stream up to *duration*."""
+    if duration <= 0:
+        raise ValueError("duration must be > 0")
+    if chunk_seconds <= 0:
+        raise ValueError("chunk_seconds must be > 0")
     frames_per_chunk = max(1, int(chunk_seconds * SAMPLE_RATE))
     max_chunks = max(1, int(np.ceil(duration / chunk_seconds)))
     with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16") as stream:
@@ -72,8 +77,6 @@ def record_audio(duration: float = RECORD_DURATION) -> np.ndarray:
     trailing_silence_chunks = 0
 
     for chunk in _stream_microphone_chunks(duration=duration, chunk_seconds=STREAM_CHUNK_SECONDS):
-        if chunk.ndim > 1:
-            chunk = chunk.squeeze()
         chunks.append(chunk)
 
         if _chunk_has_voice(chunk):
