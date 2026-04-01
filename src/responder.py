@@ -39,5 +39,5 @@ def generate_response(transcript: str, generator: ResponseGenerator | None = Non
     Returns:
         A response string ready to be passed to the TTS synthesiser.
     """
-    active_generator = generator or EchoResponseGenerator()
+    active_generator = generator if generator is not None else EchoResponseGenerator()
     return active_generator.generate(transcript)
