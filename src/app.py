@@ -35,12 +35,12 @@ from synthesize import speak_text
 
 def run_pipeline() -> None:
     """Execute one full speech-to-speech turn."""
-    latency = LatencyLogger()
 
     print("=" * 50)
     print("  Speech-to-Speech Core  |  Phase 1")
     print("=" * 50)
 
+    latency = LatencyLogger()
     # Step 1 & 2 — Record microphone audio and save WAV
     samples = latency.measure("recording_ms", record_audio)
     wav_path = latency.measure("save_ms", save_wav, samples, build_recording_filepath())
