@@ -38,6 +38,7 @@ speech-to-speech-core/
 ├── .gitignore
 ├── LICENSE
 ├── README.md
+├── custom-instructions/   # Repo-wide Copilot configuration & instructions
 ├── requirements.txt
 ├── recordings/            # Auto-populated with captured WAVs (gitignored)
 ├── outputs/               # Auto-populated with synthesized output (gitignored)
