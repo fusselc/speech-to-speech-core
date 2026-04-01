@@ -61,3 +61,30 @@ def test_latency_tracker_prints_average_and_latest(capsys):
     assert "latest_turn_ms=30.00" in out
     assert "avg_turn_ms=20.00" in out
     assert "turns=2" in out
+
+
+def test_latency_tracker_constant_memory(capsys):
+    """LatencyTracker must not grow with the number of turns recorded."""
+    from latency_logger import LatencyTracker
+
+    tracker = LatencyTracker()
+    for i in range(1000):
+        tracker.record_turn(float(i))
+
+    # Internal state must only be scalar fields — no list or deque.
+    assert not hasattr(tracker, "_total_ms_history")
+    assert tracker.turn_count == 1000
+    # Average of 0..999 = 499.5
+    assert abs(tracker.average_total_ms() - 499.5) < 1e-6
+    # Verify the latest value via the rolling summary output.
+    tracker.print_rolling_summary()
+    out = capsys.readouterr().out
+    assert "latest_turn_ms=999.00" in out
+
+
+def test_latency_tracker_empty_returns_zero():
+    from latency_logger import LatencyTracker
+
+    tracker = LatencyTracker()
+    assert tracker.turn_count == 0
+    assert tracker.average_total_ms() == 0.0
