@@ -54,6 +54,7 @@ speech-to-speech-core/
 ├── tests/
 │   ├── test_app.py
 │   ├── test_audio_input.py
+│   ├── test_latency_logger.py
 │   ├── test_responder.py
 │   ├── test_synthesize.py
 │   ├── test_transcribe.py
@@ -112,7 +113,7 @@ When the program starts, it records a short utterance from your microphone. Afte
 4. The response is spoken aloud via local TTS
 5. Latency metrics are printed
 
-By default the pipeline runs in **loop mode**: after each turn it immediately starts a new recording. Press **Ctrl+C** to exit gracefully.
+By default, the pipeline runs in **loop mode**: after each turn it starts a new recording. Press **Ctrl+C** to exit gracefully.
 
 To run a single turn only, set `LOOP_MODE = False` in `src/config.py`.
 
@@ -131,14 +132,14 @@ At the end of each run, latency is reported for:
 
 All settings are in `src/config.py`.
 
-| Setting            | Default  | Description                                                     |
-| ------------------ | -------- | --------------------------------------------------------------- |
-| `RECORD_DURATION`  | `5.0`    | Recording length in seconds                                     |
+| Setting            |  Default | Description                                                     |
+| ------------------ | -------: | --------------------------------------------------------------- |
+| `RECORD_DURATION`  |    `5.0` | Recording length in seconds                                     |
 | `WHISPER_MODEL`    | `"base"` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
-| `WHISPER_LANGUAGE` | `None`   | Language code (`None` = auto-detect, `"en"` = English)          |
-| `TTS_RATE`         | `180`    | Speech rate in words per minute                                 |
-| `LOOP_MODE`        | `True`   | Repeat the pipeline after each turn until Ctrl+C or `MAX_TURNS` |
-| `MAX_TURNS`        | `0`      | Maximum turns in loop mode (`0` = unlimited)                    |
+| `WHISPER_LANGUAGE` |   `None` | Language code (`None` = auto-detect, `"en"` = English)          |
+| `TTS_RATE`         |    `180` | Speech rate in words per minute                                 |
+| `LOOP_MODE`        |   `True` | Repeat the pipeline after each turn until Ctrl+C                |
+| `MAX_TURNS`        |      `0` | Maximum turns when loop mode is enabled (`0` = unlimited)       |
 
 ---
 
@@ -148,9 +149,11 @@ All settings are in `src/config.py`.
 ==================================================
   Speech-to-Speech Core  |  Phase 1
 ==================================================
-Recording for 5.0 second(s)… speak now.
-Transcript: What time is it?
-Response: I heard: What time is it?
+[audio_input] Recording for 5.0 second(s)… speak now.
+[audio_input] Saved recording to: recordings/turn_0001.wav
+[transcribe] Transcript: What time is it?
+[responder] Response: I heard: What time is it?
+[synthesize] Speaking: I heard: What time is it?
 [latency] summary:
 [latency] recording_ms=5000.00
 [latency] save_ms=3.12
@@ -226,3 +229,4 @@ Planned next steps:
 * streaming audio input
 * advanced response generation
 * higher-quality speech synthesis
+* richer turn management and interruption handling
