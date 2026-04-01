@@ -9,7 +9,7 @@ Future streaming integration point:
     and yields partial transcripts using a compatible streaming API.
 """
 
-from typing import Any
+from typing import Mapping, cast
 
 from faster_whisper import WhisperModel
 
@@ -37,11 +37,7 @@ def _get_model() -> WhisperModel:
     global _model
     if _model is None:
         print(f"[transcribe] Loading Whisper model '{WHISPER_MODEL}'…")
-        _model = WhisperModel(
-            _resolve_model_name(WHISPER_MODEL),
-            device="cpu",
-            compute_type="int8",
-        )
+        _model = WhisperModel(_resolve_model_name(WHISPER_MODEL))
         print("[transcribe] Model loaded.")
     return _model
 
@@ -59,11 +55,13 @@ def transcribe_file(wav_path: str) -> str:
     options: dict = {}
     if WHISPER_LANGUAGE:
         options["language"] = WHISPER_LANGUAGE
-    result: Any = model.transcribe(wav_path, **options)
+    result = model.transcribe(wav_path, **options)
     if isinstance(result, tuple) and len(result) == 2:
         segments, _ = result
         text = "".join(segment.text for segment in segments).strip()
     else:
-        text = result["text"].strip()
+        # Compatibility fallback for dict-shaped mocked results and
+        # potential backend swaps with the same external function contract.
+        text = cast(Mapping[str, str], result)["text"].strip()
     print(f"[transcribe] Transcript: {text!r}")
     return text

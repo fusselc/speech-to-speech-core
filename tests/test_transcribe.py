@@ -13,6 +13,7 @@ import pytest
 
 # Make src/ importable when running pytest from the project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+import transcribe
 
 
 class TestTranscribeFile:
@@ -28,8 +29,6 @@ class TestTranscribeFile:
         mock_model = self._make_mock_model("  hello world  ")
         with patch("transcribe._get_model", return_value=mock_model), \
              patch("transcribe.WHISPER_LANGUAGE", None):
-            # Re-import to pick up the patch cleanly
-            import transcribe
             result = transcribe.transcribe_file("fake.wav")
 
         assert result == "hello world"
@@ -38,7 +37,6 @@ class TestTranscribeFile:
         mock_model = self._make_mock_model("test")
         with patch("transcribe._get_model", return_value=mock_model), \
              patch("transcribe.WHISPER_LANGUAGE", None):
-            import transcribe
             transcribe.transcribe_file("/path/to/audio.wav")
 
         mock_model.transcribe.assert_called_once()
@@ -49,7 +47,6 @@ class TestTranscribeFile:
         mock_model = self._make_mock_model("bonjour")
         with patch("transcribe._get_model", return_value=mock_model), \
              patch("transcribe.WHISPER_LANGUAGE", "fr"):
-            import transcribe
             transcribe.transcribe_file("audio.wav")
 
         _, kwargs = mock_model.transcribe.call_args
@@ -59,7 +56,6 @@ class TestTranscribeFile:
         mock_model = self._make_mock_model("hello")
         with patch("transcribe._get_model", return_value=mock_model), \
              patch("transcribe.WHISPER_LANGUAGE", None):
-            import transcribe
             transcribe.transcribe_file("audio.wav")
 
         _, kwargs = mock_model.transcribe.call_args
@@ -69,7 +65,26 @@ class TestTranscribeFile:
         mock_model = self._make_mock_model("anything")
         with patch("transcribe._get_model", return_value=mock_model), \
              patch("transcribe.WHISPER_LANGUAGE", None):
-            import transcribe
             result = transcribe.transcribe_file("audio.wav")
 
         assert isinstance(result, str)
+
+
+class TestResolveModelName:
+    """Tests for transcribe._resolve_model_name."""
+
+    def test_maps_large_to_large_v3(self):
+        assert transcribe._resolve_model_name("large") == "large-v3"
+
+    @pytest.mark.parametrize("name", ["tiny", "base", "small", "medium", "large-v3"])
+    def test_passthrough_for_other_names(self, name: str):
+        assert transcribe._resolve_model_name(name) == name
+
+    def test_get_model_uses_resolved_model_name(self):
+        with patch("transcribe.WHISPER_MODEL", "large"), \
+             patch("transcribe.WhisperModel") as mock_whisper_model:
+            transcribe._model = None
+            transcribe._get_model()
+
+        mock_whisper_model.assert_called_once_with("large-v3")
+        transcribe._model = None
