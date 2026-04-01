@@ -6,36 +6,60 @@ Phase 1 speech-to-speech AI core in Python: microphone recording, Whisper transc
 
 ## Overview
 
-The pipeline runs one full speech-to-speech turn:
+This repository implements a single speech-to-speech turn:
 
-```
+```text
 Microphone → WAV file → Whisper → transcript → responder → TTS → speaker
 ```
 
-Each step lives in its own module so any component can be swapped out
-(e.g. a streaming transcriber, an LLM responder, or OpenVoice for synthesis)
-without touching the others.
+Each stage lives in its own module so components can be swapped or extended later—for example, streaming transcription, LLM-backed responses, or higher-quality speech synthesis—without changing the rest of the pipeline.
 
 ---
 
-## Project structure
+## Design Goals
 
-```
+* Keep each stage isolated in its own module
+* Keep functions small and readable
+* Centralize configuration in `src/config.py`
+* Make the pipeline runnable first, then extensible
+* Measure latency so performance is visible and improvable
+
+---
+
+## Module Responsibilities
+
+* `audio_input.py` — microphone capture and WAV persistence
+* `transcribe.py` — Whisper speech-to-text
+* `responder.py` — simple text response generation
+* `synthesize.py` — local text-to-speech playback
+* `latency_logger.py` — per-stage and total latency timing
+* `utils.py` — shared helpers
+* `app.py` — orchestration of the full speech-to-speech turn
+
+---
+
+## Repository Structure
+
+```text
 speech-to-speech-core/
 ├── src/
-│   ├── app.py          # Entry point — runs the full pipeline
-│   ├── config.py       # Centralised settings (sample rate, model, paths…)
-│   ├── audio_input.py  # Microphone recording + WAV save
-│   ├── transcribe.py   # Whisper speech-to-text
-│   ├── responder.py    # Response generation ("I heard: …")
-│   ├── synthesize.py   # Local TTS via pyttsx3 (OpenVoice hook included)
-│   ├── latency_logger.py # Per-stage pipeline latency instrumentation
-│   └── utils.py        # Shared helpers (ensure_dir, timestamped_filename)
+│   ├── app.py              # Entry point; runs the full pipeline
+│   ├── config.py           # Centralized configuration
+│   ├── audio_input.py      # Microphone recording + WAV save
+│   ├── transcribe.py       # Whisper speech-to-text
+│   ├── responder.py        # Simple response logic ("I heard: ...")
+│   ├── synthesize.py       # Local TTS playback
+│   ├── latency_logger.py   # Stage timing + summary output
+│   └── utils.py            # Shared helpers
 ├── tests/
+│   ├── test_app.py
+│   ├── test_audio_input.py
 │   ├── test_responder.py
+│   ├── test_synthesize.py
+│   ├── test_transcribe.py
 │   └── test_utils.py
-├── recordings/         # Auto-populated with captured WAVs (gitignored)
-├── outputs/            # Auto-populated with TTS output WAVs (gitignored)
+├── recordings/             # Auto-populated with captured WAVs (gitignored)
+├── outputs/                # Auto-populated with synthesized output (gitignored)
 ├── requirements.txt
 └── README.md
 ```
@@ -44,13 +68,13 @@ speech-to-speech-core/
 
 ## Requirements
 
-- Python 3.10 or newer
-- A working microphone
-- On Linux, `espeak` must be installed for pyttsx3:
+* Python 3.10 or newer
+* A working microphone
+* On Linux, `espeak` must be installed for `pyttsx3`
 
-  ```bash
-  sudo apt-get install espeak
-  ```
+```bash
+sudo apt-get install espeak
+```
 
 ---
 
@@ -70,9 +94,7 @@ source .venv/bin/activate      # macOS / Linux
 pip install -r requirements.txt
 ```
 
-> **Note:** `openai-whisper` downloads model weights on first run
-> (~150 MB for the default `base` model). An internet connection is required
-> only for that initial download.
+> **Note:** `openai-whisper` downloads model weights on first run (~150 MB for the default `base` model). An internet connection is required only for that initial download.
 
 ---
 
@@ -82,23 +104,73 @@ pip install -r requirements.txt
 python src/app.py
 ```
 
-When you see `Recording for 5.0 second(s)… speak now.` — say something into
-your microphone. After the recording finishes, Whisper will transcribe it,
-the transcript will be printed, and the TTS engine will speak the response.
-At the end of each run, a latency summary is printed with:
-`recording_ms`, `save_ms`, `transcription_ms`, `response_ms`,
-`synthesis_ms`, and `total_ms`.
+When the program starts, it records a short utterance from your microphone. After recording finishes:
 
-### Configuration
+1. Audio is captured and saved as a WAV file
+2. Whisper transcribes it
+3. A simple text response is generated
+4. The response is spoken aloud via local TTS
+5. Latency metrics are printed
 
-All settings are in `src/config.py`. Key options:
+At the end of each run, latency is reported for:
 
-| Setting | Default | Description |
-|---|---|---|
-| `RECORD_DURATION` | `5.0` | Recording length in seconds |
-| `WHISPER_MODEL` | `"base"` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
-| `WHISPER_LANGUAGE` | `None` | Language code (`None` = auto-detect, `"en"` = English) |
-| `TTS_RATE` | `180` | Speech rate in words per minute |
+* `recording_ms`
+* `save_ms`
+* `transcription_ms`
+* `response_ms`
+* `synthesis_ms`
+* `total_ms`
+
+---
+
+## Configuration
+
+All settings are in `src/config.py`.
+
+| Setting            | Default  | Description                                                     |
+| ------------------ | -------- | --------------------------------------------------------------- |
+| `RECORD_DURATION`  | `5.0`    | Recording length in seconds                                     |
+| `WHISPER_MODEL`    | `"base"` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
+| `WHISPER_LANGUAGE` | `None`   | Language code (`None` = auto-detect, `"en"` = English)          |
+| `TTS_RATE`         | `180`    | Speech rate in words per minute                                 |
+
+---
+
+## Expected Output Example
+
+```text
+==================================================
+  Speech-to-Speech Core  |  Phase 1
+==================================================
+Recording for 5.0 second(s)… speak now.
+Transcript: What time is it?
+Response: I heard: What time is it?
+[latency] summary:
+[latency] recording_ms=5000.00
+[latency] save_ms=3.12
+[latency] transcription_ms=850.00
+[latency] response_ms=2.00
+[latency] synthesis_ms=120.00
+[latency] total_ms=5975.12
+==================================================
+  Done.
+==================================================
+```
+
+---
+
+## Latency Metrics
+
+Latency is logged per stage in milliseconds (`ms`):
+
+* `recording_ms` — microphone capture time
+* `save_ms` — WAV write time
+* `transcription_ms` — Whisper inference time
+* `response_ms` — response generation time
+* `synthesis_ms` — text-to-speech playback time
+* `total_ms` — full pipeline duration
+
+These metrics make performance trade-offs measurable.
 
 ---
 
@@ -109,23 +181,43 @@ pip install pytest
 pytest tests/
 ```
 
----
-
-## OpenVoice integration (future)
-
-`src/synthesize.py` contains a clearly marked comment block showing exactly
-where to plug in the [OpenVoice](https://github.com/myshell-ai/OpenVoice)
-`ToneColorConverter` once you are ready to upgrade synthesis quality.
-No other files need to change.
+Tests are written to remain CI-friendly and avoid hard dependency on local audio hardware by mocking external interfaces where needed.
 
 ---
 
-## Extending the pipeline
+## OpenVoice Integration (Future)
 
-| Goal | File to change |
-|---|---|
-| Stream audio in real time | `audio_input.py` |
-| Upgrade transcription | `transcribe.py` |
-| Add LLM-backed replies | `responder.py` |
-| Upgrade TTS / voice cloning | `synthesize.py` |
-| Change file paths or model | `config.py` |
+`src/synthesize.py` contains a clearly marked hook showing where OpenVoice can later replace the current TTS engine without changing the rest of the pipeline.
+
+---
+
+## Extending the Pipeline
+
+| Goal                        | File to change   |
+| --------------------------- | ---------------- |
+| Stream audio in real time   | `audio_input.py` |
+| Upgrade transcription       | `transcribe.py`  |
+| Add LLM-backed replies      | `responder.py`   |
+| Upgrade TTS / voice cloning | `synthesize.py`  |
+| Change file paths or model  | `config.py`      |
+
+---
+
+## Troubleshooting
+
+* If microphone capture fails, verify microphone permissions and default input device
+* If `pyttsx3` fails on Linux, confirm `espeak` is installed
+* If Whisper fails initially, ensure model download completed successfully
+* If transcription is slow, try a smaller Whisper model
+
+---
+
+## Roadmap
+
+Planned next steps:
+
+* conversational loop support
+* faster transcription backend
+* streaming audio input
+* advanced response generation
+* higher-quality speech synthesis
