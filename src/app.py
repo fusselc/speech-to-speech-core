@@ -42,13 +42,7 @@ from turn_controller import TurnController
 
 def _safe_total_ms(latency: LatencyLogger) -> float:
     """Compute best-effort total from recorded stage timings."""
-    return (
-        latency._stages_ms.get("recording_ms", 0.0)
-        + latency._stages_ms.get("save_ms", 0.0)
-        + latency._stages_ms.get("transcription_ms", 0.0)
-        + latency._stages_ms.get("response_ms", 0.0)
-        + latency._stages_ms.get("synthesis_ms", 0.0)
-    )
+    return latency.total_stages_ms()
 
 
 def run_pipeline(latency_tracker: LatencyTracker | None = None) -> None:
@@ -62,7 +56,7 @@ def run_pipeline(latency_tracker: LatencyTracker | None = None) -> None:
     # Step 1 & 2 — Record microphone audio and save WAV
     try:
         samples = latency.measure("recording_ms", record_audio)
-    except Exception as exc:  # pragma: no cover - exercised by tests with mocks
+    except Exception as exc:
         print(f"[audio_input] Recording failed: {exc}")
         print("[app] Skipping turn safely.")
         return

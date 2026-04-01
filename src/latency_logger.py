@@ -20,6 +20,10 @@ class LatencyLogger:
         self._stages_ms[stage_name] = (time.perf_counter() - started) * 1000.0
         return result
 
+    def total_stages_ms(self) -> float:
+        """Return sum of measured stage latencies."""
+        return sum(self._stages_ms.values())
+
     def print_summary(self) -> None:
         """Print a clear one-run latency summary."""
         total_ms = (time.perf_counter() - self._start) * 1000.0

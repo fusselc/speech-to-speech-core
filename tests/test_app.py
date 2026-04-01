@@ -162,7 +162,7 @@ class TestRunPipeline:
             "speak": 1,
         }
 
-    def test_empty_transcript_skips_response_and_synthesis(self, capsys):
+    def test_whitespace_transcript_skips_response_and_synthesis(self, capsys):
         with patch("app.record_audio", return_value=[1, 2, 3]), \
              patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
              patch("app.save_wav", return_value="/tmp/fake.wav"), \

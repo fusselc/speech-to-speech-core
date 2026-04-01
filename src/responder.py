@@ -28,17 +28,16 @@ class EchoResponseGenerator:
         return response
 
 
-_default_generator: ResponseGenerator = EchoResponseGenerator()
-
-
 def generate_response(transcript: str, generator: ResponseGenerator | None = None) -> str:
     """Build a reply string from a transcript.
 
     Args:
         transcript: The text that was transcribed from the user's speech.
+        generator: Optional response backend for dependency injection.
+            When None, the default deterministic echo generator is used.
 
     Returns:
         A response string ready to be passed to the TTS synthesiser.
     """
-    active_generator = generator or _default_generator
+    active_generator = generator or EchoResponseGenerator()
     return active_generator.generate(transcript)
