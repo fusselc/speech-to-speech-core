@@ -1,5 +1,7 @@
 # speech-to-speech-core
 
+[![CI](https://github.com/fusselc/speech-to-speech-core/actions/workflows/ci.yml/badge.svg)](https://github.com/fusselc/speech-to-speech-core/actions/workflows/ci.yml)
+
 Phase 1 speech-to-speech AI core in Python: microphone recording, Whisper transcription, and text-to-speech playback for a modular low-latency voice pipeline.
 
 ---
