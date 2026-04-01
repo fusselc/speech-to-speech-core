@@ -129,11 +129,11 @@ All settings live in `src/config.py`. Key options:
 ==================================================
   Speech-to-Speech Core  |  Phase 1
 ==================================================
-Recording for 5.0 second(s)… speak now.
-
-Transcript: What time is it?
-
-Response: I heard: What time is it?
+[audio_input] Recording for 5.0 second(s)… speak now.
+[audio_input] Saved recording to: recordings/turn_0001.wav
+[transcribe] Transcript: What time is it?
+[responder] Response: I heard: What time is it?
+[synthesize] Speaking: I heard: What time is it?
 [latency] summary:
 [latency] recording_ms=5000.00
 [latency] save_ms=3.12
