@@ -43,14 +43,14 @@ Each stage lives in its own module so components can be swapped or extended late
 ```text
 speech-to-speech-core/
 ├── src/
-│   ├── app.py              # Entry point; runs the full pipeline
-│   ├── config.py           # Centralized configuration
-│   ├── audio_input.py      # Microphone recording + WAV save
-│   ├── transcribe.py       # Whisper speech-to-text
-│   ├── responder.py        # Simple response logic ("I heard: ...")
-│   ├── synthesize.py       # Local TTS playback
-│   ├── latency_logger.py   # Stage timing + summary output
-│   └── utils.py            # Shared helpers
+│   ├── app.py
+│   ├── config.py
+│   ├── audio_input.py
+│   ├── transcribe.py
+│   ├── responder.py
+│   ├── synthesize.py
+│   ├── latency_logger.py
+│   └── utils.py
 ├── tests/
 │   ├── test_app.py
 │   ├── test_audio_input.py
@@ -59,8 +59,8 @@ speech-to-speech-core/
 │   ├── test_synthesize.py
 │   ├── test_transcribe.py
 │   └── test_utils.py
-├── recordings/             # Auto-populated with captured WAVs (gitignored)
-├── outputs/                # Auto-populated with synthesized output (gitignored)
+├── recordings/
+├── outputs/
 ├── requirements.txt
 └── README.md
 ```
@@ -86,16 +86,20 @@ sudo apt-get install espeak
 git clone https://github.com/fusselc/speech-to-speech-core.git
 cd speech-to-speech-core
 
-# 2. Create and activate a virtual environment
+# 2. Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate      # macOS / Linux
-# .venv\Scripts\activate       # Windows
+
+# Windows
+.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
 
 # 3. Install dependencies
 pip install -r requirements.txt
 ```
 
-> **Note:** `openai-whisper` downloads model weights on first run (~150 MB for the default `base` model). An internet connection is required only for that initial download.
+> **Note:** `openai-whisper` downloads model weights on first run (~150 MB for the default `base` model). Internet is only required for that initial download.
 
 ---
 
@@ -105,41 +109,41 @@ pip install -r requirements.txt
 python src/app.py
 ```
 
-When the program starts, it records a short utterance from your microphone. After recording finishes:
+When the program starts:
 
-1. Audio is captured and saved as a WAV file
-2. Whisper transcribes it
-3. A simple text response is generated
-4. The response is spoken aloud via local TTS
-5. Latency metrics are printed
+1. Audio is recorded from microphone
+2. WAV file is saved
+3. Whisper transcribes speech
+4. A response is generated
+5. TTS speaks the response
+6. Latency is printed
 
-By default, the pipeline runs in **loop mode**: after each turn it starts a new recording. Press **Ctrl+C** to exit gracefully.
+By default the pipeline runs in loop mode.
 
-To run a single turn only, set `LOOP_MODE = False` in `src/config.py`.
+Press **Ctrl+C** to stop.
 
-At the end of each run, latency is reported for:
+To disable looping:
 
-* `recording_ms`
-* `save_ms`
-* `transcription_ms`
-* `response_ms`
-* `synthesis_ms`
-* `total_ms`
+Edit `src/config.py`
+
+```python
+LOOP_MODE = False
+```
 
 ---
 
 ## Configuration
 
-All settings are in `src/config.py`.
+All settings live in `src/config.py`.
 
-| Setting            |  Default | Description                                                     |
-| ------------------ | -------: | --------------------------------------------------------------- |
-| `RECORD_DURATION`  |    `5.0` | Recording length in seconds                                     |
-| `WHISPER_MODEL`    | `"base"` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
-| `WHISPER_LANGUAGE` |   `None` | Language code (`None` = auto-detect, `"en"` = English)          |
-| `TTS_RATE`         |    `180` | Speech rate in words per minute                                 |
-| `LOOP_MODE`        |   `True` | Repeat the pipeline after each turn until Ctrl+C                |
-| `MAX_TURNS`        |      `0` | Maximum turns when loop mode is enabled (`0` = unlimited)       |
+| Setting            | Default  | Description                   |
+| ------------------ | -------- | ----------------------------- |
+| `RECORD_DURATION`  | `5.0`    | Recording duration in seconds |
+| `WHISPER_MODEL`    | `"base"` | Whisper model size            |
+| `WHISPER_LANGUAGE` | `None`   | Auto-detect language          |
+| `TTS_RATE`         | `180`    | Speech speed                  |
+| `LOOP_MODE`        | `True`   | Repeat turns                  |
+| `MAX_TURNS`        | `0`      | Unlimited turns               |
 
 ---
 
@@ -147,7 +151,7 @@ All settings are in `src/config.py`.
 
 ```text
 ==================================================
-  Speech-to-Speech Core  |  Phase 1
+Speech-to-Speech Core | Phase 1
 ==================================================
 [audio_input] Recording for 5.0 second(s)… speak now.
 [audio_input] Saved recording to: recordings/turn_0001.wav
@@ -162,7 +166,7 @@ All settings are in `src/config.py`.
 [latency] synthesis_ms=120.00
 [latency] total_ms=5975.12
 ==================================================
-  Done.
+Done.
 ==================================================
 ```
 
@@ -170,54 +174,61 @@ All settings are in `src/config.py`.
 
 ## Latency Metrics
 
-Latency is logged per stage in milliseconds (`ms`):
+Latency is tracked per stage:
 
-* `recording_ms` — microphone capture time
-* `save_ms` — WAV write time
-* `transcription_ms` — Whisper inference time
-* `response_ms` — response generation time
-* `synthesis_ms` — text-to-speech playback time
-* `total_ms` — full pipeline duration
+* `recording_ms`
+* `save_ms`
+* `transcription_ms`
+* `response_ms`
+* `synthesis_ms`
+* `total_ms`
 
-These metrics make performance trade-offs measurable.
+This makes optimization measurable.
 
 ---
 
 ## Tests
 
+Run tests:
+
 ```bash
-pip install pytest
 pytest tests/
 ```
 
-Tests are written to remain CI-friendly and avoid hard dependency on local audio hardware by mocking external interfaces where needed.
+If needed install pytest:
+
+```bash
+pip install pytest
+```
+
+Tests are written to remain CI-friendly and avoid hardware dependency through mocking.
 
 ---
 
 ## OpenVoice Integration (Future)
 
-`src/synthesize.py` contains a clearly marked hook showing where OpenVoice can later replace the current TTS engine without changing the rest of the pipeline.
+`src/synthesize.py` already contains the correct integration point for replacing current TTS with OpenVoice later.
 
 ---
 
 ## Extending the Pipeline
 
-| Goal                        | File to change   |
-| --------------------------- | ---------------- |
-| Stream audio in real time   | `audio_input.py` |
-| Upgrade transcription       | `transcribe.py`  |
-| Add LLM-backed replies      | `responder.py`   |
-| Upgrade TTS / voice cloning | `synthesize.py`  |
-| Change file paths or model  | `config.py`      |
+| Goal                 | File             |
+| -------------------- | ---------------- |
+| Stream audio         | `audio_input.py` |
+| Faster transcription | `transcribe.py`  |
+| LLM responses        | `responder.py`   |
+| Better TTS           | `synthesize.py`  |
+| Config changes       | `config.py`      |
 
 ---
 
 ## Troubleshooting
 
-* If microphone capture fails, verify microphone permissions and default input device
-* If `pyttsx3` fails on Linux, confirm `espeak` is installed
-* If Whisper fails initially, ensure model download completed successfully
-* If transcription is slow, try a smaller Whisper model
+* Verify microphone permissions if recording fails
+* Install `espeak` if Linux TTS fails
+* Whisper first run requires model download
+* Use smaller Whisper models if slow
 
 ---
 
@@ -225,8 +236,9 @@ Tests are written to remain CI-friendly and avoid hard dependency on local audio
 
 Planned next steps:
 
-* faster transcription backend
-* streaming audio input
-* advanced response generation
-* higher-quality speech synthesis
-* richer turn management and interruption handling
+* Faster transcription backend
+* Streaming audio input
+* Advanced response generation
+* Higher quality speech synthesis
+* Interrupt handling
+* OpenVoice integration
