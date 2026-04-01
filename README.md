@@ -70,7 +70,7 @@ source .venv/bin/activate      # macOS / Linux
 pip install -r requirements.txt
 ```
 
-> **Note:** `openai-whisper` downloads model weights on first run
+> **Note:** `faster-whisper` downloads model weights on first run
 > (~150 MB for the default `base` model). An internet connection is required
 > only for that initial download.
 
