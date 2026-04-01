@@ -89,6 +89,17 @@ At the end of each run, a latency summary is printed with:
 `recording_ms`, `save_ms`, `transcription_ms`, `response_ms`,
 `synthesis_ms`, and `total_ms`.
 
+### Loop mode (conversational)
+
+By default, `LOOP_MODE = True` in `src/config.py`, so the pipeline repeats
+automatically after each turn. The Whisper model is loaded once and reused
+across all turns to minimise startup latency.
+
+Press **Ctrl+C** at any time to exit gracefully.
+
+To run a single turn and exit, set `LOOP_MODE = False` in `src/config.py`,
+or limit the number of turns with `MAX_TURNS` (e.g. `MAX_TURNS = 5`).
+
 ### Configuration
 
 All settings are in `src/config.py`. Key options:
@@ -99,6 +110,8 @@ All settings are in `src/config.py`. Key options:
 | `WHISPER_MODEL` | `"base"` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
 | `WHISPER_LANGUAGE` | `None` | Language code (`None` = auto-detect, `"en"` = English) |
 | `TTS_RATE` | `180` | Speech rate in words per minute |
+| `LOOP_MODE` | `True` | `True` = repeat until Ctrl+C, `False` = single turn |
+| `MAX_TURNS` | `None` | Max turns in loop mode (`None` = unlimited) |
 
 ---
 

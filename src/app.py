@@ -14,6 +14,11 @@ Pipeline steps:
 
 Each step maps to exactly one module so the pipeline is easy to extend
 (e.g. add streaming, swap the TTS engine, plug in an LLM responder).
+
+Loop mode:
+  When LOOP_MODE is True (default), the pipeline repeats across turns.
+  The Whisper model is loaded once and reused each turn.
+  Press Ctrl+C to exit gracefully.
 """
 
 import sys
@@ -27,6 +32,7 @@ if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
 from audio_input import build_recording_filepath, record_audio, save_wav
+from config import LOOP_MODE, MAX_TURNS
 from latency_logger import LatencyLogger
 from transcribe import transcribe_file
 from responder import generate_response
@@ -61,5 +67,28 @@ def run_pipeline() -> None:
     print("=" * 50)
 
 
+def run_app() -> None:
+    """Run the pipeline once or in a continuous loop depending on LOOP_MODE.
+
+    When LOOP_MODE is False, runs a single turn and exits.
+    When LOOP_MODE is True, repeats until MAX_TURNS is reached or the user
+    presses Ctrl+C.  The Whisper model is loaded once and reused across turns
+    because transcribe.py caches it at module level.
+    """
+    if not LOOP_MODE:
+        run_pipeline()
+        return
+
+    turn = 0
+    try:
+        while MAX_TURNS is None or turn < MAX_TURNS:
+            if turn > 0:
+                print("\n" + "-" * 50 + "\n")
+            run_pipeline()
+            turn += 1
+    except KeyboardInterrupt:
+        print("\n[app] Interrupted. Goodbye.")
+
+
 if __name__ == "__main__":
-    run_pipeline()
+    run_app()

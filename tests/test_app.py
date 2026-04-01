@@ -147,3 +147,61 @@ class TestRunPipeline:
             "respond": 1,
             "speak": 1,
         }
+
+
+class TestRunApp:
+    """Tests for app.run_app (loop / single-shot dispatch)."""
+
+    def _mocks(self):
+        """Return a list of patches suitable for use as a context stack."""
+        return [
+            patch("app.record_audio", return_value=[1, 2, 3]),
+            patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
+            patch("app.save_wav", return_value="/tmp/fake.wav"),
+            patch("app.transcribe_file", return_value="hello"),
+            patch("app.generate_response", return_value="I heard: hello"),
+            patch("app.speak_text"),
+        ]
+
+    def test_single_shot_when_loop_mode_false(self):
+        """run_app with LOOP_MODE=False calls run_pipeline exactly once."""
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            for p in self._mocks():
+                stack.enter_context(p)
+            with patch("app.LOOP_MODE", False):
+                with patch("app.run_pipeline") as mock_pipeline:
+                    from app import run_app
+                    run_app()
+        mock_pipeline.assert_called_once()
+
+    def test_loop_respects_max_turns(self):
+        """run_app with LOOP_MODE=True and MAX_TURNS=3 runs exactly 3 turns."""
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            for p in self._mocks():
+                stack.enter_context(p)
+            with patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", 3):
+                with patch("app.run_pipeline") as mock_pipeline:
+                    from app import run_app
+                    run_app()
+        assert mock_pipeline.call_count == 3
+
+    def test_loop_exits_on_keyboard_interrupt(self, capsys):
+        """run_app with LOOP_MODE=True exits cleanly on KeyboardInterrupt."""
+        with patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", None):
+            with patch("app.run_pipeline", side_effect=[None, KeyboardInterrupt]):
+                from app import run_app
+                # Should not raise
+                run_app()
+        out = capsys.readouterr().out
+        assert "[app] Interrupted. Goodbye." in out
+
+    def test_separator_printed_between_turns(self, capsys):
+        """A separator line is printed before every turn after the first."""
+        with patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", 2):
+            with patch("app.run_pipeline"):
+                from app import run_app
+                run_app()
+        out = capsys.readouterr().out
+        assert "-" * 50 in out

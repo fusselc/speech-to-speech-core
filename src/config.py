@@ -50,3 +50,15 @@ WHISPER_LANGUAGE: str | None = None
 # Speech rate for pyttsx3 (words per minute).
 # NOTE: This setting is ignored when OpenVoice replaces pyttsx3.
 TTS_RATE: int = 180
+
+# ---------------------------------------------------------------------------
+# Loop / conversational mode settings
+# ---------------------------------------------------------------------------
+
+# Set to True to run the pipeline repeatedly until interrupted (Ctrl+C).
+# Set to False to run a single turn and exit.
+LOOP_MODE: bool = True
+
+# Maximum number of turns to run when LOOP_MODE is True.
+# Set to None to run indefinitely.
+MAX_TURNS: int | None = None
