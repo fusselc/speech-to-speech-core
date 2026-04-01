@@ -4,6 +4,9 @@ numpy>=1.24.0
 scipy>=1.11.0
 
 # Speech-to-text (Whisper)
+# torch is an explicit dependency of openai-whisper; listing it here ensures
+# the correct version is resolved when installing in a fresh environment.
+torch>=2.0.0
 openai-whisper>=20231117
 
 # Text-to-speech (local, offline)

@@ -147,3 +147,112 @@ class TestRunPipeline:
             "respond": 1,
             "speak": 1,
         }
+
+
+class TestRunApp:
+    """Tests for app.run_app loop behaviour."""
+
+    def _mocked_pipeline(self, call_counter: dict):
+        """Patch all pipeline stages and count run_pipeline invocations."""
+
+        def fake_record():
+            return [1, 2, 3]
+
+        def fake_save(samples, path):
+            return "/tmp/fake.wav"
+
+        def fake_transcribe(path):
+            return "hello"
+
+        def fake_respond(text):
+            return "I heard: hello"
+
+        def fake_speak(text):
+            call_counter["turns"] = call_counter.get("turns", 0) + 1
+
+        return (
+            patch("app.record_audio", side_effect=fake_record),
+            patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
+            patch("app.save_wav", side_effect=fake_save),
+            patch("app.transcribe_file", side_effect=fake_transcribe),
+            patch("app.generate_response", side_effect=fake_respond),
+            patch("app.speak_text", side_effect=fake_speak),
+        )
+
+    def test_run_app_single_turn_when_loop_mode_false(self):
+        """run_app runs exactly one turn when LOOP_MODE is False."""
+        counter = {}
+        patches = self._mocked_pipeline(counter)
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], \
+             patch("app.LOOP_MODE", False):
+            from app import run_app
+            run_app()
+        assert counter.get("turns", 0) == 1
+
+    def test_run_app_loop_respects_max_turns(self):
+        """run_app stops after MAX_TURNS turns when LOOP_MODE is True."""
+        counter = {}
+        patches = self._mocked_pipeline(counter)
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], \
+             patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", 3):
+            from app import run_app
+            run_app()
+        assert counter.get("turns", 0) == 3
+
+    def test_run_app_exits_gracefully_on_keyboard_interrupt(self, capsys):
+        """run_app catches KeyboardInterrupt and prints a goodbye message."""
+        call_count = [0]
+
+        def fake_speak(text):
+            call_count[0] += 1
+            if call_count[0] >= 2:
+                raise KeyboardInterrupt
+
+        with patch("app.record_audio", return_value=[1, 2, 3]), \
+             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
+             patch("app.save_wav", return_value="/tmp/fake.wav"), \
+             patch("app.transcribe_file", return_value="hello"), \
+             patch("app.generate_response", return_value="I heard: hello"), \
+             patch("app.speak_text", side_effect=fake_speak), \
+             patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", 0):
+            from app import run_app
+            run_app()  # must not propagate KeyboardInterrupt
+
+        out = capsys.readouterr().out
+        assert "Goodbye" in out
+
+    def test_run_app_prints_separator_between_turns(self, capsys):
+        """A turn separator is printed before every turn after the first."""
+        counter = [0]
+
+        def fake_speak(text):
+            counter[0] += 1
+
+        with patch("app.record_audio", return_value=[1, 2, 3]), \
+             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
+             patch("app.save_wav", return_value="/tmp/fake.wav"), \
+             patch("app.transcribe_file", return_value="hello"), \
+             patch("app.generate_response", return_value="I heard: hello"), \
+             patch("app.speak_text", side_effect=fake_speak), \
+             patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", 2):
+            from app import run_app
+            run_app()
+
+        out = capsys.readouterr().out
+        assert "-" * 50 in out
+
+    def test_run_app_latency_logged_each_turn(self, capsys):
+        """Latency summary is printed once per turn in loop mode."""
+        with patch("app.record_audio", return_value=[1, 2, 3]), \
+             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
+             patch("app.save_wav", return_value="/tmp/fake.wav"), \
+             patch("app.transcribe_file", return_value="hello"), \
+             patch("app.generate_response", return_value="I heard: hello"), \
+             patch("app.speak_text"), \
+             patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", 2):
+            from app import run_app
+            run_app()
+
+        out = capsys.readouterr().out
+        # total_ms should appear twice (once per turn)
+        assert out.count("total_ms") == 2

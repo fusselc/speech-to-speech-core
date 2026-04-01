@@ -14,6 +14,11 @@ Pipeline steps:
 
 Each step maps to exactly one module so the pipeline is easy to extend
 (e.g. add streaming, swap the TTS engine, plug in an LLM responder).
+
+Loop mode:
+  Set LOOP_MODE = True in config.py to repeat the pipeline after each turn.
+  Press Ctrl+C to exit gracefully. MAX_TURNS limits the number of turns
+  (0 = unlimited).
 """
 
 import sys
@@ -27,6 +32,7 @@ if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
 from audio_input import build_recording_filepath, record_audio, save_wav
+from config import LOOP_MODE, MAX_TURNS
 from latency_logger import LatencyLogger
 from transcribe import transcribe_file
 from responder import generate_response
@@ -61,5 +67,28 @@ def run_pipeline() -> None:
     print("=" * 50)
 
 
+def run_app() -> None:
+    """Run the pipeline, looping if LOOP_MODE is enabled.
+
+    In loop mode the pipeline repeats until Ctrl+C is pressed or MAX_TURNS
+    is reached (MAX_TURNS == 0 means unlimited). A separator is printed
+    between turns so output from consecutive runs is easy to distinguish.
+    """
+    if not LOOP_MODE:
+        run_pipeline()
+        return
+
+    print("Loop mode active. Press Ctrl+C to exit.\n")
+    turn = 0
+    try:
+        while MAX_TURNS == 0 or turn < MAX_TURNS:
+            if turn > 0:
+                print("\n" + "-" * 50 + "\n")
+            run_pipeline()
+            turn += 1
+    except KeyboardInterrupt:
+        print("\n\nExiting. Goodbye!")
+
+
 if __name__ == "__main__":
-    run_pipeline()
+    run_app()
