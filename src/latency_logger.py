@@ -41,31 +41,43 @@ class LatencyLogger:
 
 @dataclass
 class LatencyTracker:
-    """Track rolling and average latency across multiple turns."""
+    """Track rolling and average latency across multiple turns.
 
-    _total_ms_history: list[float] = field(default_factory=list)
+    Uses constant-memory counters instead of an unbounded history list so
+    that long-running loop mode does not grow memory without bound.
+    """
+
+    _count: int = 0
+    _running_sum: float = 0.0
+    _latest: float = 0.0
 
     def record_turn(self, total_ms: float) -> None:
         """Record total latency for one completed turn."""
-        self._total_ms_history.append(total_ms)
+        self._count += 1
+        self._running_sum += total_ms
+        self._latest = total_ms
 
     @property
     def turn_count(self) -> int:
         """Return number of recorded turns."""
-        return len(self._total_ms_history)
+        return self._count
+
+    @property
+    def latest_total_ms(self) -> float:
+        """Return total latency of the most recent turn (0.0 if none recorded)."""
+        return self._latest
 
     def average_total_ms(self) -> float:
         """Return average total latency across recorded turns."""
-        if not self._total_ms_history:
+        if self._count == 0:
             return 0.0
-        return sum(self._total_ms_history) / len(self._total_ms_history)
+        return self._running_sum / self._count
 
     def print_rolling_summary(self) -> None:
         """Print rolling latency summary after each turn."""
-        if not self._total_ms_history:
+        if self._count == 0:
             return
-        latest_ms = self._total_ms_history[-1]
         print("[latency] rolling_summary:")
-        print(f"[latency] latest_turn_ms={latest_ms:.2f}")
+        print(f"[latency] latest_turn_ms={self._latest:.2f}")
         print(f"[latency] avg_turn_ms={self.average_total_ms():.2f}")
-        print(f"[latency] turns={self.turn_count}")
+        print(f"[latency] turns={self._count}")
