@@ -41,33 +41,37 @@ class LatencyLogger:
 
 @dataclass
 class LatencyTracker:
-    """Track rolling and average latency across multiple turns."""
+    """Track rolling and average latency across multiple turns.
 
-    _turn_count: int = 0
-    _total_ms_sum: float = 0.0
-    _latest_total_ms: float = 0.0
+    Uses constant-memory counters instead of an unbounded history list so
+    that long-running loop mode does not grow memory without bound.
+    """
+
+    _count: int = 0
+    _running_sum: float = 0.0
+    _latest: float = 0.0
 
     def record_turn(self, total_ms: float) -> None:
         """Record total latency for one completed turn."""
-        self._turn_count += 1
-        self._total_ms_sum += total_ms
-        self._latest_total_ms = total_ms
+        self._count += 1
+        self._running_sum += total_ms
+        self._latest = total_ms
 
     @property
     def turn_count(self) -> int:
         """Return number of recorded turns."""
-        return self._turn_count
+        return self._count
 
     @property
     def latest_total_ms(self) -> float:
-        """Return most recently recorded total latency."""
-        return self._latest_total_ms
+        """Return total latency of the most recent turn (0.0 if none recorded)."""
+        return self._latest
 
     def average_total_ms(self) -> float:
         """Return average total latency across recorded turns."""
-        if self._turn_count == 0:
+        if self._count == 0:
             return 0.0
-        return self._total_ms_sum / self._turn_count
+        return self._running_sum / self._count
 
     def metrics(self) -> dict[str, float | int]:
         """Return structured latency metrics for easy testing/integration."""
@@ -79,9 +83,9 @@ class LatencyTracker:
 
     def print_rolling_summary(self) -> None:
         """Print rolling latency summary after each turn."""
-        if self._turn_count == 0:
+        if self._count == 0:
             return
         print("[latency] rolling_summary:")
-        print(f"[latency] latest_turn_ms={self.latest_total_ms:.2f}")
+        print(f"[latency] latest_turn_ms={self._latest:.2f}")
         print(f"[latency] avg_turn_ms={self.average_total_ms():.2f}")
         print(f"[latency] turns={self.turn_count}")
