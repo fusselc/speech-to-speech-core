@@ -30,7 +30,9 @@ from config import (
 from utils import ensure_dir, timestamped_filename
 
 
-def _chunk_has_voice(chunk: np.ndarray, threshold: int = VAD_AMPLITUDE_THRESHOLD) -> bool:
+def _chunk_has_voice(
+    chunk: np.ndarray, threshold: int = VAD_AMPLITUDE_THRESHOLD
+) -> bool:
     """Return True when *chunk* contains speech-like amplitude."""
     if chunk.size == 0:
         return False
@@ -50,7 +52,9 @@ def _stream_microphone_chunks(
         raise ValueError("chunk_seconds must be > 0")
     frames_per_chunk = max(1, int(chunk_seconds * SAMPLE_RATE))
     max_chunks = max(1, int(np.ceil(duration / chunk_seconds)))
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16") as stream:
+    with sd.InputStream(
+        samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16"
+    ) as stream:
         for _ in range(max_chunks):
             chunk, overflowed = stream.read(frames_per_chunk)
             if overflowed:
@@ -65,7 +69,10 @@ def _should_finalize_for_silence(
     min_voice_chunks: int = VAD_MIN_VOICE_CHUNKS,
 ) -> bool:
     """Return True when recording should stop due to sustained silence."""
-    return voiced_chunks >= min_voice_chunks and trailing_silence_chunks >= silence_chunk_limit
+    return (
+        voiced_chunks >= min_voice_chunks
+        and trailing_silence_chunks >= silence_chunk_limit
+    )
 
 
 def record_audio(duration: float = RECORD_DURATION) -> np.ndarray:
@@ -81,12 +88,16 @@ def record_audio(duration: float = RECORD_DURATION) -> np.ndarray:
         f"[audio_input] Streaming capture started "
         f"(max {duration:.1f}s, silence stop {VAD_SILENCE_SECONDS:.1f}s)… speak now."
     )
-    silence_chunk_limit = max(1, int(np.ceil(VAD_SILENCE_SECONDS / STREAM_CHUNK_SECONDS)))
+    silence_chunk_limit = max(
+        1, int(np.ceil(VAD_SILENCE_SECONDS / STREAM_CHUNK_SECONDS))
+    )
     chunks: list[np.ndarray] = []
     voiced_chunks = 0
     trailing_silence_chunks = 0
 
-    for chunk in _stream_microphone_chunks(duration=duration, chunk_seconds=STREAM_CHUNK_SECONDS):
+    for chunk in _stream_microphone_chunks(
+        duration=duration, chunk_seconds=STREAM_CHUNK_SECONDS
+    ):
         chunks.append(chunk)
 
         if _chunk_has_voice(chunk):

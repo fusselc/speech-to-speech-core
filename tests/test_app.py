@@ -7,9 +7,7 @@ verified without audio hardware, Whisper model weights, or a TTS backend.
 
 import os
 import sys
-from unittest.mock import call, patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 # Make src/ importable when running pytest from the project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -26,13 +24,18 @@ class TestRunPipeline:
 
     def _run_with_mocks(self, transcript: str = "hello world"):
         """Helper: run the pipeline with all external calls mocked."""
-        with patch("app.record_audio", return_value=[1, 2, 3]) as mock_record, \
-             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
-             patch("app.save_wav", return_value="/tmp/fake.wav"), \
-             patch("app.transcribe_file", return_value=transcript) as mock_transcribe, \
-             patch("app.generate_response", return_value=f"I heard: {transcript}") as mock_respond, \
-             patch("app.speak_text") as mock_speak:
+        with (
+            patch("app.record_audio", return_value=[1, 2, 3]) as mock_record,
+            patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
+            patch("app.save_wav", return_value="/tmp/fake.wav"),
+            patch("app.transcribe_file", return_value=transcript) as mock_transcribe,
+            patch(
+                "app.generate_response", return_value=f"I heard: {transcript}"
+            ) as mock_respond,
+            patch("app.speak_text") as mock_speak,
+        ):
             from app import run_pipeline
+
             run_pipeline()
             return mock_record, mock_transcribe, mock_respond, mock_speak
 
@@ -57,13 +60,16 @@ class TestRunPipeline:
         self._run_with_mocks()
 
     def test_pipeline_handles_microphone_failure_without_crash(self, capsys):
-        with patch("app.record_audio", side_effect=RuntimeError("mic error")), \
-             patch("app.build_recording_filepath"), \
-             patch("app.save_wav"), \
-             patch("app.transcribe_file"), \
-             patch("app.generate_response"), \
-             patch("app.speak_text"):
+        with (
+            patch("app.record_audio", side_effect=RuntimeError("mic error")),
+            patch("app.build_recording_filepath"),
+            patch("app.save_wav"),
+            patch("app.transcribe_file"),
+            patch("app.generate_response"),
+            patch("app.speak_text"),
+        ):
             from app import run_pipeline
+
             run_pipeline()
 
         out = capsys.readouterr().out
@@ -93,13 +99,16 @@ class TestRunPipeline:
         def fake_speak(text):
             call_order.append("speak")
 
-        with patch("app.record_audio", side_effect=fake_record), \
-             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
-             patch("app.save_wav", side_effect=fake_save), \
-             patch("app.transcribe_file", side_effect=fake_transcribe), \
-             patch("app.generate_response", side_effect=fake_respond), \
-             patch("app.speak_text", side_effect=fake_speak):
+        with (
+            patch("app.record_audio", side_effect=fake_record),
+            patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
+            patch("app.save_wav", side_effect=fake_save),
+            patch("app.transcribe_file", side_effect=fake_transcribe),
+            patch("app.generate_response", side_effect=fake_respond),
+            patch("app.speak_text", side_effect=fake_speak),
+        ):
             from app import run_pipeline
+
             run_pipeline()
 
         assert call_order == ["record", "save", "transcribe", "respond", "speak"]
@@ -145,13 +154,16 @@ class TestRunPipeline:
         def fake_speak(text):
             stage_counts["speak"] += 1
 
-        with patch("app.record_audio", side_effect=fake_record), \
-             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
-             patch("app.save_wav", side_effect=fake_save), \
-             patch("app.transcribe_file", side_effect=fake_transcribe), \
-             patch("app.generate_response", side_effect=fake_respond), \
-             patch("app.speak_text", side_effect=fake_speak):
+        with (
+            patch("app.record_audio", side_effect=fake_record),
+            patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
+            patch("app.save_wav", side_effect=fake_save),
+            patch("app.transcribe_file", side_effect=fake_transcribe),
+            patch("app.generate_response", side_effect=fake_respond),
+            patch("app.speak_text", side_effect=fake_speak),
+        ):
             from app import run_pipeline
+
             run_pipeline()
 
         assert stage_counts == {
@@ -163,13 +175,16 @@ class TestRunPipeline:
         }
 
     def test_whitespace_transcript_skips_response_and_synthesis(self, capsys):
-        with patch("app.record_audio", return_value=[1, 2, 3]), \
-             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
-             patch("app.save_wav", return_value="/tmp/fake.wav"), \
-             patch("app.transcribe_file", return_value="   "), \
-             patch("app.generate_response") as mock_respond, \
-             patch("app.speak_text") as mock_speak:
+        with (
+            patch("app.record_audio", return_value=[1, 2, 3]),
+            patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
+            patch("app.save_wav", return_value="/tmp/fake.wav"),
+            patch("app.transcribe_file", return_value="   "),
+            patch("app.generate_response") as mock_respond,
+            patch("app.speak_text") as mock_speak,
+        ):
             from app import run_pipeline
+
             run_pipeline()
 
         mock_respond.assert_not_called()
@@ -212,9 +227,17 @@ class TestRunApp:
         """run_app runs exactly one turn when LOOP_MODE is False."""
         counter = {}
         patches = self._mocked_pipeline(counter)
-        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], \
-             patch("app.LOOP_MODE", False):
+        with (
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patch("app.LOOP_MODE", False),
+        ):
             from app import run_app
+
             run_app()
         assert counter.get("turns", 0) == 1
 
@@ -222,9 +245,18 @@ class TestRunApp:
         """run_app stops after MAX_TURNS turns when LOOP_MODE is True."""
         counter = {}
         patches = self._mocked_pipeline(counter)
-        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], \
-             patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", 3):
+        with (
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patch("app.LOOP_MODE", True),
+            patch("app.MAX_TURNS", 3),
+        ):
             from app import run_app
+
             run_app()
         assert counter.get("turns", 0) == 3
 
@@ -237,14 +269,18 @@ class TestRunApp:
             if call_count[0] >= 2:
                 raise KeyboardInterrupt
 
-        with patch("app.record_audio", return_value=[1, 2, 3]), \
-             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
-             patch("app.save_wav", return_value="/tmp/fake.wav"), \
-             patch("app.transcribe_file", return_value="hello"), \
-             patch("app.generate_response", return_value="I heard: hello"), \
-             patch("app.speak_text", side_effect=fake_speak), \
-             patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", 0):
+        with (
+            patch("app.record_audio", return_value=[1, 2, 3]),
+            patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
+            patch("app.save_wav", return_value="/tmp/fake.wav"),
+            patch("app.transcribe_file", return_value="hello"),
+            patch("app.generate_response", return_value="I heard: hello"),
+            patch("app.speak_text", side_effect=fake_speak),
+            patch("app.LOOP_MODE", True),
+            patch("app.MAX_TURNS", 0),
+        ):
             from app import run_app
+
             run_app()  # must not propagate KeyboardInterrupt
 
         out = capsys.readouterr().out
@@ -257,14 +293,18 @@ class TestRunApp:
         def fake_speak(text):
             counter[0] += 1
 
-        with patch("app.record_audio", return_value=[1, 2, 3]), \
-             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
-             patch("app.save_wav", return_value="/tmp/fake.wav"), \
-             patch("app.transcribe_file", return_value="hello"), \
-             patch("app.generate_response", return_value="I heard: hello"), \
-             patch("app.speak_text", side_effect=fake_speak), \
-             patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", 2):
+        with (
+            patch("app.record_audio", return_value=[1, 2, 3]),
+            patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
+            patch("app.save_wav", return_value="/tmp/fake.wav"),
+            patch("app.transcribe_file", return_value="hello"),
+            patch("app.generate_response", return_value="I heard: hello"),
+            patch("app.speak_text", side_effect=fake_speak),
+            patch("app.LOOP_MODE", True),
+            patch("app.MAX_TURNS", 2),
+        ):
             from app import run_app
+
             run_app()
 
         out = capsys.readouterr().out
@@ -272,14 +312,18 @@ class TestRunApp:
 
     def test_run_app_latency_logged_each_turn(self, capsys):
         """Latency summary is printed once per turn in loop mode."""
-        with patch("app.record_audio", return_value=[1, 2, 3]), \
-             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"), \
-             patch("app.save_wav", return_value="/tmp/fake.wav"), \
-             patch("app.transcribe_file", return_value="hello"), \
-             patch("app.generate_response", return_value="I heard: hello"), \
-             patch("app.speak_text"), \
-             patch("app.LOOP_MODE", True), patch("app.MAX_TURNS", 2):
+        with (
+            patch("app.record_audio", return_value=[1, 2, 3]),
+            patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
+            patch("app.save_wav", return_value="/tmp/fake.wav"),
+            patch("app.transcribe_file", return_value="hello"),
+            patch("app.generate_response", return_value="I heard: hello"),
+            patch("app.speak_text"),
+            patch("app.LOOP_MODE", True),
+            patch("app.MAX_TURNS", 2),
+        ):
             from app import run_app
+
             run_app()
 
         out = capsys.readouterr().out

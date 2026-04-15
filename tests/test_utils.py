@@ -6,14 +6,12 @@ or heavy ML libraries.
 """
 
 import os
-import sys
 import re
-import tempfile
+import sys
 
 # Make src/ importable when running pytest from the project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-import pytest
 from utils import ensure_dir, timestamped_filename
 
 
@@ -57,6 +55,7 @@ class TestTimestampedFilename:
 
     def test_two_calls_differ(self):
         import time
+
         name1 = timestamped_filename("test", "wav")
         time.sleep(1.1)  # Ensure the second is different
         name2 = timestamped_filename("test", "wav")

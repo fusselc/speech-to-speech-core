@@ -28,7 +28,9 @@ class EchoResponseGenerator:
         return response
 
 
-def generate_response(transcript: str, generator: ResponseGenerator | None = None) -> str:
+def generate_response(
+    transcript: str, generator: ResponseGenerator | None = None
+) -> str:
     """Build a reply string from a transcript.
 
     Args:

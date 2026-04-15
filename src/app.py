@@ -21,8 +21,8 @@ Loop mode:
   (0 = unlimited).
 """
 
-import sys
 import os
+import sys
 
 # ---------------------------------------------------------------------------
 # Path setup — allow `python src/app.py` from the project root
@@ -34,9 +34,9 @@ if _SRC_DIR not in sys.path:
 from audio_input import build_recording_filepath, record_audio, save_wav
 from config import LOOP_MODE, MAX_TURNS
 from latency_logger import LatencyLogger, LatencyTracker
-from transcribe import transcribe_file
 from responder import generate_response
 from synthesize import speak_text
+from transcribe import transcribe_file
 from turn_controller import TurnController
 
 

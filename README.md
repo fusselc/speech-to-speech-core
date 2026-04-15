@@ -1,6 +1,6 @@
 # speech-to-speech-core
 
-Phase 1 speech-to-speech AI core in Python: microphone recording, Whisper transcription, and text-to-speech playback for a modular low-latency voice pipeline.
+Phase 1 speech-to-speech AI core in Python: microphone recording, Whisper transcription, and text-to-speech playback for a modular low-latency voice pipeline with modern packaging and CI tooling.
 
 ---
 
@@ -61,7 +61,9 @@ speech-to-speech-core/
 │   └── test_utils.py
 ├── recordings/
 ├── outputs/
-├── requirements.txt
+├── pyproject.toml
+├── .pre-commit-config.yaml
+├── .github/workflows/ci.yml
 └── README.md
 ```
 
@@ -81,6 +83,23 @@ sudo apt-get install espeak
 
 ## Setup
 
+### Option A (recommended): uv
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/fusselc/speech-to-speech-core.git
+cd speech-to-speech-core
+
+# 2. Create and activate a virtual environment
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# 3. Install runtime + dev dependencies
+uv sync --group dev
+```
+
+### Option B: pip
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/fusselc/speech-to-speech-core.git
@@ -95,11 +114,11 @@ python -m venv .venv
 # macOS / Linux
 source .venv/bin/activate
 
-# 3. Install dependencies
-pip install -r requirements.txt
+# 3. Install runtime + dev dependencies
+pip install -e ".[dev]"
 ```
 
-> **Note:** `openai-whisper` downloads model weights on first run (~150 MB for the default `base` model). Internet is only required for that initial download.
+> **Note:** `openai-whisper` downloads model weights on first run (~150 MB for the default `base` model). Internet is only required for that initial download. `faster-whisper` and `silero-vad` are also installed in Phase 1 tooling prep and will be integrated into runtime flow in later phases.
 
 ---
 
@@ -196,16 +215,27 @@ This makes optimization measurable.
 
 ## Tests
 
+Run lint + type checks:
+
+```bash
+ruff check .
+black --check .
+isort --check-only .
+mypy src tests
+pyright
+```
+
 Run tests:
 
 ```bash
 pytest tests/
 ```
 
-If needed install pytest:
+Set up local pre-commit hooks:
 
 ```bash
-pip install pytest
+pre-commit install
+pre-commit run --all-files
 ```
 
 Tests are written to remain CI-friendly and avoid hardware dependency through mocking.
