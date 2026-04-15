@@ -2,10 +2,19 @@
 cli.py — Typer-based command-line interface.
 """
 
+import os
+import sys
 from typing import Annotated
 
 import typer
 from loguru import logger
+
+# ---------------------------------------------------------------------------
+# Path setup — allow `python src/cli.py` and package entrypoint compatibility.
+# ---------------------------------------------------------------------------
+_SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SRC_DIR not in sys.path:
+    sys.path.insert(0, _SRC_DIR)
 
 import config
 from logging_config import configure_logging

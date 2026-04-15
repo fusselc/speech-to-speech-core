@@ -14,7 +14,6 @@ import os
 from collections.abc import Iterator
 
 import numpy as np
-import sounddevice as sd
 import torch
 from loguru import logger
 from scipy.io.wavfile import write as wav_write
@@ -22,6 +21,11 @@ from silero_vad import get_speech_timestamps, load_silero_vad
 
 import config
 from utils import ensure_dir, timestamped_filename
+
+try:
+    import sounddevice as sd
+except (ImportError, OSError):
+    sd = None
 
 # ---------------------------------------------------------------------------
 # Module-level Silero VAD cache — loaded on first use.
@@ -102,6 +106,12 @@ def _stream_microphone_chunks(
         chunk_seconds = _resolve_vad_chunk_seconds()
     if chunk_seconds <= 0:
         raise ValueError("chunk_seconds must be > 0")
+    if sd is None:
+        logger.error(
+            "No microphone backend found (sounddevice/PortAudio missing). "
+            "Install PortAudio and grant microphone permissions."
+        )
+        raise RuntimeError("Microphone backend unavailable.")
     frames_per_chunk = max(1, int(chunk_seconds * config.SAMPLE_RATE))
     max_chunks = max(1, int(np.ceil(duration / chunk_seconds)))
     try:

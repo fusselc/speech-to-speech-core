@@ -45,8 +45,11 @@ def _get_engine() -> pyttsx3.Engine:
     global _engine
     if _engine is None:
         try:
-            _engine = pyttsx3.init()
-            _engine.setProperty("rate", TTS_RATE)
+            engine = pyttsx3.init()
+            if engine is None:
+                raise RuntimeError("pyttsx3 returned no engine instance.")
+            engine.setProperty("rate", TTS_RATE)
+            _engine = engine
             logger.info("TTS engine initialized (rate={}).", TTS_RATE)
         except Exception:
             logger.exception(

@@ -109,8 +109,9 @@ def transcribe_file(file_path: str) -> str:
         if "out of memory" in str(exc).lower():
             logger.warning("CUDA out of memory during transcription; retrying on CPU.")
             global _model
-            _model = _build_model(device="cpu", compute_type="float32")
-            segments, _ = _model.transcribe(
+            fallback_model = _build_model(device="cpu", compute_type="float32")
+            _model = fallback_model
+            segments, _ = fallback_model.transcribe(
                 str(file_path),
                 beam_size=5,
                 language=config.LANGUAGE,

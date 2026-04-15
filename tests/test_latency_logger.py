@@ -106,12 +106,16 @@ def test_latency_tracker_does_not_store_history():
         tracker.record_turn(ms)
 
     # No history list must exist on the instance
-    assert not hasattr(
-        tracker, "_total_ms_history"
-    ), "Phase 4: LatencyTracker must not keep an unbounded history list"
-    assert not hasattr(
-        tracker, "history"
-    ), "Phase 4: LatencyTracker must not keep an unbounded history list"
+    has_total_history = hasattr(tracker, "_total_ms_history")
+    has_history = hasattr(tracker, "history")
+    if has_total_history:
+        raise AssertionError(
+            "Phase 4: LatencyTracker must not keep an unbounded history list"
+        )
+    if has_history:
+        raise AssertionError(
+            "Phase 4: LatencyTracker must not keep an unbounded history list"
+        )
 
 
 def test_latency_tracker_count_running_sum_latest():
