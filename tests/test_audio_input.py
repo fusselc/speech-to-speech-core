@@ -56,7 +56,8 @@ class TestRecordAudio:
         stream = self._fake_stream(chunks)
         with (
             patch("sounddevice.InputStream", return_value=stream),
-            patch("audio_input._chunk_has_voice", side_effect=[True, False]),
+            patch("audio_input.is_speech_chunk", side_effect=[True, False]),
+            patch("audio_input._resolve_vad_chunk_seconds", return_value=0.2),
         ):
             from audio_input import record_audio
 
@@ -74,8 +75,11 @@ class TestRecordAudio:
 
         with (
             patch("sounddevice.InputStream", return_value=stream),
-            patch("audio_input.STREAM_CHUNK_SECONDS", 0.2),
+            patch("audio_input._resolve_vad_chunk_seconds", return_value=0.2),
             patch("audio_input.VAD_SILENCE_SECONDS", 0.4),
+            patch(
+                "audio_input.is_speech_chunk", side_effect=[True, False, False, True]
+            ),
         ):
             from audio_input import record_audio
 
@@ -94,8 +98,9 @@ class TestRecordAudio:
 
         with (
             patch("sounddevice.InputStream", return_value=stream),
-            patch("audio_input.STREAM_CHUNK_SECONDS", 0.2),
+            patch("audio_input._resolve_vad_chunk_seconds", return_value=0.2),
             patch("audio_input.VAD_SILENCE_SECONDS", 0.2),
+            patch("audio_input.is_speech_chunk", side_effect=[False, False]),
         ):
             from audio_input import record_audio
 
@@ -104,24 +109,22 @@ class TestRecordAudio:
         # Reads full max duration because voice was never detected.
         assert stream.read.call_count == 2
 
-    def test_chunk_has_voice_uses_peak_amplitude_threshold(self):
-        from audio_input import _chunk_has_voice
+    def test_is_speech_chunk_true_when_timestamps_exist(self):
+        with (
+            patch(
+                "audio_input.get_speech_timestamps",
+                return_value=[{"start": 0, "end": 10}],
+            ),
+            patch("audio_input._get_silero_vad_model", return_value=MagicMock()),
+        ):
+            from audio_input import is_speech_chunk
 
-        assert (
-            _chunk_has_voice(np.array([0, 100, -499], dtype="int16"), threshold=500)
-            is False
-        )
-        assert (
-            _chunk_has_voice(np.array([0, 500], dtype="int16"), threshold=500) is True
-        )
-        assert (
-            _chunk_has_voice(np.array([0, -500], dtype="int16"), threshold=500) is True
-        )
+            assert is_speech_chunk(np.array([1, 2, 3], dtype="int16")) is True
 
-    def test_chunk_has_voice_returns_false_for_empty_chunk(self):
-        from audio_input import _chunk_has_voice
+    def test_is_speech_chunk_false_for_empty_chunk(self):
+        from audio_input import is_speech_chunk
 
-        assert _chunk_has_voice(np.array([], dtype="int16")) is False
+        assert is_speech_chunk(np.array([], dtype="int16")) is False
 
     def test_should_finalize_for_silence_requires_prior_voice(self):
         from audio_input import _should_finalize_for_silence
@@ -129,6 +132,16 @@ class TestRecordAudio:
         assert _should_finalize_for_silence(0, 5, 3, min_voice_chunks=1) is False
         assert _should_finalize_for_silence(1, 2, 3, min_voice_chunks=1) is False
         assert _should_finalize_for_silence(1, 3, 3, min_voice_chunks=1) is True
+
+    def test_record_audio_calls_record_until_silence(self):
+        expected = np.array([1, 2], dtype=np.int16)
+        with patch("audio_input.record_until_silence", return_value=expected) as mocked:
+            from audio_input import record_audio
+
+            result = record_audio(duration=1.2)
+
+        mocked.assert_called_once_with(duration=1.2)
+        np.testing.assert_array_equal(result, expected)
 
 
 class TestSaveWav:

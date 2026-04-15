@@ -1,7 +1,7 @@
 """
 tests/test_transcribe.py — Unit tests for src/transcribe.py.
 
-The Whisper model is mocked so these tests run without GPU, model weights,
+The transcription model is mocked so these tests run without GPU, model weights,
 or any audio file on disk.
 """
 
@@ -16,19 +16,19 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 class TestTranscribeFile:
     """Tests for transcribe.transcribe_file."""
 
-    def _make_mock_model(self, text: str) -> MagicMock:
-        """Return a mock that behaves like a loaded Whisper model."""
+    def _make_mock_model(self, segments: list[str]) -> MagicMock:
+        """Return a mock that behaves like a loaded faster-whisper model."""
         mock_model = MagicMock()
-        mock_model.transcribe.return_value = {"text": text}
+        mock_segments = [MagicMock(text=text) for text in segments]
+        mock_model.transcribe.return_value = (mock_segments, MagicMock())
         return mock_model
 
-    def test_returns_stripped_text(self):
-        mock_model = self._make_mock_model("  hello world  ")
+    def test_returns_concatenated_and_stripped_text(self):
+        mock_model = self._make_mock_model(["  hello", "world  "])
         with (
             patch("transcribe._get_model", return_value=mock_model),
-            patch("transcribe.WHISPER_LANGUAGE", None),
+            patch("transcribe.LANGUAGE", None),
         ):
-            # Re-import to pick up the patch cleanly
             import transcribe
 
             result = transcribe.transcribe_file("fake.wav")
@@ -36,10 +36,10 @@ class TestTranscribeFile:
         assert result == "hello world"
 
     def test_calls_transcribe_with_filepath(self):
-        mock_model = self._make_mock_model("test")
+        mock_model = self._make_mock_model(["test"])
         with (
             patch("transcribe._get_model", return_value=mock_model),
-            patch("transcribe.WHISPER_LANGUAGE", None),
+            patch("transcribe.LANGUAGE", None),
         ):
             import transcribe
 
@@ -48,12 +48,13 @@ class TestTranscribeFile:
         mock_model.transcribe.assert_called_once()
         args, kwargs = mock_model.transcribe.call_args
         assert args[0] == "/path/to/audio.wav"
+        assert kwargs["beam_size"] == 5
 
     def test_language_option_passed_when_set(self):
-        mock_model = self._make_mock_model("bonjour")
+        mock_model = self._make_mock_model(["bonjour"])
         with (
             patch("transcribe._get_model", return_value=mock_model),
-            patch("transcribe.WHISPER_LANGUAGE", "fr"),
+            patch("transcribe.LANGUAGE", "fr"),
         ):
             import transcribe
 
@@ -63,23 +64,23 @@ class TestTranscribeFile:
         assert kwargs.get("language") == "fr"
 
     def test_no_language_option_when_none(self):
-        mock_model = self._make_mock_model("hello")
+        mock_model = self._make_mock_model(["hello"])
         with (
             patch("transcribe._get_model", return_value=mock_model),
-            patch("transcribe.WHISPER_LANGUAGE", None),
+            patch("transcribe.LANGUAGE", None),
         ):
             import transcribe
 
             transcribe.transcribe_file("audio.wav")
 
         _, kwargs = mock_model.transcribe.call_args
-        assert "language" not in kwargs
+        assert kwargs.get("language") is None
 
     def test_returns_string(self):
-        mock_model = self._make_mock_model("anything")
+        mock_model = self._make_mock_model(["anything"])
         with (
             patch("transcribe._get_model", return_value=mock_model),
-            patch("transcribe.WHISPER_LANGUAGE", None),
+            patch("transcribe.LANGUAGE", None),
         ):
             import transcribe
 

@@ -1,6 +1,6 @@
 # speech-to-speech-core
 
-Phase 1 speech-to-speech AI core in Python: microphone recording, Whisper transcription, and text-to-speech playback for a modular low-latency voice pipeline with modern packaging and CI tooling.
+Phase 1 speech-to-speech AI core in Python: microphone recording, faster-whisper transcription, and text-to-speech playback for a modular low-latency voice pipeline with modern packaging and CI tooling.
 
 ---
 
@@ -9,7 +9,7 @@ Phase 1 speech-to-speech AI core in Python: microphone recording, Whisper transc
 This repository implements a single speech-to-speech turn:
 
 ```text
-Microphone → WAV file → Whisper → transcript → responder → TTS → speaker
+Microphone → WAV file → faster-whisper → transcript → responder → TTS → speaker
 ```
 
 Each stage lives in its own module so components can be swapped or extended later—for example, streaming transcription, LLM-backed responses, or higher-quality speech synthesis—without changing the rest of the pipeline.
@@ -29,7 +29,7 @@ Each stage lives in its own module so components can be swapped or extended late
 ## Module Responsibilities
 
 * `audio_input.py` — microphone capture and WAV persistence
-* `transcribe.py` — Whisper speech-to-text
+* `transcribe.py` — faster-whisper speech-to-text
 * `responder.py` — simple text response generation
 * `synthesize.py` — local text-to-speech playback
 * `latency_logger.py` — per-stage and total latency timing
@@ -118,7 +118,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-> **Note:** `openai-whisper` downloads model weights on first run (~150 MB for the default `base` model). Internet is only required for that initial download. `faster-whisper` and `silero-vad` are also installed in Phase 1 tooling prep and will be integrated into runtime flow in later phases.
+> **Note:** `faster-whisper` downloads model weights on first run (model-size dependent). Internet is only required for that initial download.
 
 ---
 
@@ -132,7 +132,7 @@ When the program starts:
 
 1. Audio is recorded from microphone
 2. WAV file is saved
-3. Whisper transcribes speech
+3. faster-whisper transcribes speech
 4. A response is generated
 5. TTS speaks the response
 6. Latency is printed
@@ -159,12 +159,14 @@ All settings live in `src/config.py`.
 | Setting            | Default  | Description                   |
 | ------------------ | -------- | ----------------------------- |
 | `RECORD_DURATION`  | `5.0`    | Maximum recording duration in seconds |
-| `STREAM_CHUNK_SECONDS` | `0.2` | Streaming capture chunk size (seconds) |
-| `VAD_AMPLITUDE_THRESHOLD` | `500` | Voice activity amplitude threshold |
+| `USE_STREAMING` | `True` | Enable streaming-oriented chunking foundation |
+| `STREAMING_CHUNK_DURATION` | `0.5` | Streaming chunk duration (seconds) |
+| `VAD_CHUNK_SECONDS` | `0.5` | Silero VAD chunk duration (seconds) |
+| `SILENCE_THRESHOLD` | `0.5` | Silero speech confidence threshold |
 | `VAD_SILENCE_SECONDS` | `1.0` | Trailing silence required to auto-stop |
 | `VAD_MIN_VOICE_CHUNKS` | `1` | Minimum voiced chunks before silence stop is allowed |
-| `WHISPER_MODEL`    | `"base"` | Whisper model size            |
-| `WHISPER_LANGUAGE` | `None`   | Auto-detect language          |
+| `WHISPER_MODEL`    | `"base"` | faster-whisper model size     |
+| `LANGUAGE`         | `None`   | Auto-detect language          |
 | `TTS_RATE`         | `180`    | Speech speed                  |
 | `LOOP_MODE`        | `True`   | Repeat turns                  |
 | `MAX_TURNS`        | `0`      | Unlimited turns               |
@@ -264,8 +266,8 @@ Tests are written to remain CI-friendly and avoid hardware dependency through mo
 
 * Verify microphone permissions if recording fails
 * Install `espeak` if Linux TTS fails
-* Whisper first run requires model download
-* Use smaller Whisper models if slow
+* faster-whisper first run requires model download
+* Use smaller faster-whisper models if slow
 
 ---
 

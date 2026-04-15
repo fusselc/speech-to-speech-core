@@ -15,39 +15,79 @@ from collections.abc import Iterator
 
 import numpy as np
 import sounddevice as sd
+import torch
+from loguru import logger
 from scipy.io.wavfile import write as wav_write
+from silero_vad import get_speech_timestamps, load_silero_vad
 
 from config import (
     CHANNELS,
     RECORD_DURATION,
     RECORDINGS_DIR,
     SAMPLE_RATE,
-    STREAM_CHUNK_SECONDS,
-    VAD_AMPLITUDE_THRESHOLD,
+    SILENCE_THRESHOLD,
+    STREAMING_CHUNK_DURATION,
+    USE_STREAMING,
+    VAD_CHUNK_SECONDS,
     VAD_MIN_VOICE_CHUNKS,
     VAD_SILENCE_SECONDS,
 )
 from utils import ensure_dir, timestamped_filename
 
+# ---------------------------------------------------------------------------
+# Module-level Silero VAD cache — loaded on first use.
+# ---------------------------------------------------------------------------
+_silero_vad_model = None
 
-def _chunk_has_voice(
-    chunk: np.ndarray, threshold: int = VAD_AMPLITUDE_THRESHOLD
-) -> bool:
-    """Return True when *chunk* contains speech-like amplitude."""
-    if chunk.size == 0:
+
+def _get_silero_vad_model():
+    """Load and cache the Silero VAD ONNX model."""
+    global _silero_vad_model
+    if _silero_vad_model is None:
+        logger.info("Loading Silero VAD ONNX model...")
+        _silero_vad_model = load_silero_vad(onnx=True)
+        logger.info("Silero VAD model loaded.")
+    return _silero_vad_model
+
+
+def _resolve_vad_chunk_seconds() -> float:
+    """Resolve chunk duration used by VAD and streaming-compatible capture."""
+    base = STREAMING_CHUNK_DURATION if USE_STREAMING else VAD_CHUNK_SECONDS
+    return min(max(base, 0.5), 1.0)
+
+
+def is_speech_chunk(audio_chunk: np.ndarray) -> bool:
+    """Return True when a chunk contains speech according to Silero VAD."""
+    if audio_chunk.size == 0:
         return False
-    # Cast to int32 so abs(-32768) is handled safely without int16 overflow.
-    peak = int(np.max(np.abs(chunk.astype(np.int32))))
-    return peak >= threshold
+    model = _get_silero_vad_model()
+    audio_float = audio_chunk.astype(np.float32, copy=False) / 32768.0
+    audio_tensor = torch.from_numpy(audio_float)
+    speech_timestamps = get_speech_timestamps(
+        audio_tensor,
+        model,
+        threshold=SILENCE_THRESHOLD,
+        sampling_rate=SAMPLE_RATE,
+    )
+    has_speech = len(speech_timestamps) > 0
+    logger.debug(
+        "VAD decision: speech={} chunk_samples={} threshold={}",
+        has_speech,
+        int(audio_chunk.size),
+        SILENCE_THRESHOLD,
+    )
+    return has_speech
 
 
 def _stream_microphone_chunks(
     duration: float = RECORD_DURATION,
-    chunk_seconds: float = STREAM_CHUNK_SECONDS,
+    chunk_seconds: float | None = None,
 ) -> Iterator[np.ndarray]:
     """Yield microphone audio chunks from an input stream up to *duration*."""
     if duration <= 0:
         raise ValueError("duration must be > 0")
+    if chunk_seconds is None:
+        chunk_seconds = _resolve_vad_chunk_seconds()
     if chunk_seconds <= 0:
         raise ValueError("chunk_seconds must be > 0")
     frames_per_chunk = max(1, int(chunk_seconds * SAMPLE_RATE))
@@ -58,7 +98,7 @@ def _stream_microphone_chunks(
         for _ in range(max_chunks):
             chunk, overflowed = stream.read(frames_per_chunk)
             if overflowed:
-                print("[audio_input] Warning: input overflow detected during capture.")
+                logger.warning("Input overflow detected during capture.")
             yield np.asarray(chunk).squeeze()
 
 
@@ -75,8 +115,8 @@ def _should_finalize_for_silence(
     )
 
 
-def record_audio(duration: float = RECORD_DURATION) -> np.ndarray:
-    """Capture microphone audio using streaming chunks plus simple VAD.
+def record_until_silence(duration: float = RECORD_DURATION) -> np.ndarray:
+    """Capture microphone audio using Silero VAD until trailing silence.
 
     Args:
         duration: Maximum recording length in seconds.
@@ -84,23 +124,28 @@ def record_audio(duration: float = RECORD_DURATION) -> np.ndarray:
     Returns:
         A 1-D NumPy array of int16 PCM samples.
     """
-    print(
-        f"[audio_input] Streaming capture started "
-        f"(max {duration:.1f}s, silence stop {VAD_SILENCE_SECONDS:.1f}s)… speak now."
+    chunk_seconds = _resolve_vad_chunk_seconds()
+    logger.info(
+        "Streaming capture started (max {:.1f}s, silence stop {:.1f}s, chunk {:.2f}s)... speak now.",
+        duration,
+        VAD_SILENCE_SECONDS,
+        chunk_seconds,
     )
     silence_chunk_limit = max(
-        1, int(np.ceil(VAD_SILENCE_SECONDS / STREAM_CHUNK_SECONDS))
+        1,
+        int(np.ceil(VAD_SILENCE_SECONDS / chunk_seconds)),
     )
     chunks: list[np.ndarray] = []
     voiced_chunks = 0
     trailing_silence_chunks = 0
 
     for chunk in _stream_microphone_chunks(
-        duration=duration, chunk_seconds=STREAM_CHUNK_SECONDS
+        duration=duration, chunk_seconds=chunk_seconds
     ):
-        chunks.append(chunk)
+        chunk_pcm = np.asarray(chunk, dtype=np.int16).reshape(-1)
+        chunks.append(chunk_pcm)
 
-        if _chunk_has_voice(chunk):
+        if is_speech_chunk(chunk_pcm):
             voiced_chunks += 1
             trailing_silence_chunks = 0
         else:
@@ -117,8 +162,13 @@ def record_audio(duration: float = RECORD_DURATION) -> np.ndarray:
     if not chunks:
         return np.array([], dtype=np.int16)
 
-    print("[audio_input] Recording complete.")
+    logger.info("Recording complete.")
     return np.concatenate(chunks).astype(np.int16, copy=False)
+
+
+def record_audio(duration: float = RECORD_DURATION) -> np.ndarray:
+    """Backward-compatible wrapper for microphone recording with VAD auto-stop."""
+    return record_until_silence(duration=duration)
 
 
 def save_wav(samples: np.ndarray, filepath: str) -> str:
@@ -133,7 +183,7 @@ def save_wav(samples: np.ndarray, filepath: str) -> str:
     """
     ensure_dir(os.path.dirname(filepath))
     wav_write(filepath, SAMPLE_RATE, samples)
-    print(f"[audio_input] Saved recording to: {filepath}")
+    logger.info("Saved recording to: {}", filepath)
     return filepath
 
 
