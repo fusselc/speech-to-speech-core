@@ -73,6 +73,14 @@ class LatencyTracker:
             return 0.0
         return self._running_sum / self._count
 
+    def metrics(self) -> dict[str, float | int]:
+        """Return structured latency metrics for easy testing/integration."""
+        return {
+            "latest_total_ms": self.latest_total_ms,
+            "average_total_ms": self.average_total_ms(),
+            "turn_count": self.turn_count,
+        }
+
     def print_rolling_summary(self) -> None:
         """Print rolling latency summary after each turn."""
         if self._count == 0:
@@ -80,4 +88,4 @@ class LatencyTracker:
         print("[latency] rolling_summary:")
         print(f"[latency] latest_turn_ms={self._latest:.2f}")
         print(f"[latency] avg_turn_ms={self.average_total_ms():.2f}")
-        print(f"[latency] turns={self._count}")
+        print(f"[latency] turns={self.turn_count}")

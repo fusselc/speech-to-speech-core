@@ -63,6 +63,34 @@ def test_latency_tracker_prints_average_and_latest(capsys):
     assert "turns=2" in out
 
 
+def test_latency_tracker_structured_metrics():
+    from latency_logger import LatencyTracker
+
+    tracker = LatencyTracker()
+    tracker.record_turn(15.0)
+    tracker.record_turn(45.0)
+
+    metrics = tracker.metrics()
+    assert metrics["latest_total_ms"] == 45.0
+    assert metrics["average_total_ms"] == 30.0
+    assert metrics["turn_count"] == 2
+
+
+def test_latency_tracker_uses_constant_memory():
+    from latency_logger import LatencyTracker
+
+    tracker = LatencyTracker()
+    for idx in range(1, 5001):
+        tracker.record_turn(float(idx))
+
+    assert tracker.turn_count == 5000
+    assert tracker.latest_total_ms == 5000.0
+    # arithmetic mean for 1..5000
+    assert tracker.average_total_ms() == 2500.5
+    # no unbounded history list retained
+    assert "_total_ms_history" not in tracker.__dict__
+
+
 def test_latency_tracker_does_not_store_history():
     """Verify LatencyTracker has no unbounded list — Phase 4 memory-safety check."""
     from latency_logger import LatencyTracker
