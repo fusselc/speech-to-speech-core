@@ -64,7 +64,7 @@ speech-to-speech run --vad-sensitivity 0.35
 
 ## Configuration ⚙️
 
-All tunable values live in `/home/runner/work/speech-to-speech-core/speech-to-speech-core/src/config.py`.
+All tunable values live in `src/config.py`.
 
 | Setting | Default | Description |
 | --- | --- | --- |
@@ -172,7 +172,7 @@ python -m benchmarks.run_latency_benchmark --turns 10
 
 Results are written to:
 
-`/home/runner/work/speech-to-speech-core/speech-to-speech-core/benchmarks/latency_results.csv`
+`benchmarks/latency_results.csv`
 
 ## Troubleshooting 🛠️
 
