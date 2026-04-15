@@ -67,7 +67,8 @@ def is_speech_chunk(audio_chunk: np.ndarray) -> bool:
     model = _get_silero_vad_model()
     audio_float = audio_chunk.astype(np.float32, copy=False) / 32768.0
     try:
-        _resolve_vad_device()
+        vad_device = _resolve_vad_device()
+        logger.debug("VAD runtime device: {}", vad_device)
         audio_tensor = torch.from_numpy(audio_float)
         speech_timestamps = get_speech_timestamps(
             audio_tensor,

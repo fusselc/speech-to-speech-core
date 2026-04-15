@@ -59,12 +59,14 @@ def test_latency_tracker_prints_average_and_latest():
     tracker.record_turn(30.0)
     with patch("latency_logger.logger.info") as mock_info:
         tracker.print_rolling_summary()
-    out = " ".join(str(call.args[0]) for call in mock_info.call_args_list)
-
-    assert "rolling_summary" in out
-    assert "latest_turn_ms={:.2f}" in out
-    assert "avg_turn_ms={:.2f}" in out
-    assert "turns={}" in out
+    calls = mock_info.call_args_list
+    assert "rolling_summary" in str(calls[0].args[0])
+    assert calls[1].args[0] == "[latency] latest_turn_ms={:.2f}"
+    assert calls[1].args[1] == 30.0
+    assert calls[2].args[0] == "[latency] avg_turn_ms={:.2f}"
+    assert calls[2].args[1] == 20.0
+    assert calls[3].args[0] == "[latency] turns={}"
+    assert calls[3].args[1] == 2
 
 
 def test_latency_tracker_structured_metrics():

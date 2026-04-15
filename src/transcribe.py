@@ -21,7 +21,7 @@ _model: WhisperModel | None = None
 
 def _resolve_device_and_compute_type() -> tuple[str, str]:
     """Pick device + compute type defaults based on CUDA availability."""
-    preferred = config.WHISPER_DEVICE.lower()
+    preferred = str(config.WHISPER_DEVICE or "auto").lower()
     if preferred == "cuda":
         if torch.cuda.is_available():
             return "cuda", "float16"
