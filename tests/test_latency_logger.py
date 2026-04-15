@@ -89,3 +89,48 @@ def test_latency_tracker_uses_constant_memory():
     assert tracker.average_total_ms() == 2500.5
     # no unbounded history list retained
     assert "_total_ms_history" not in tracker.__dict__
+
+
+def test_latency_tracker_does_not_store_history():
+    """Verify LatencyTracker has no unbounded list — Phase 4 memory-safety check."""
+    from latency_logger import LatencyTracker
+
+    tracker = LatencyTracker()
+    for ms in (10.0, 20.0, 30.0):
+        tracker.record_turn(ms)
+
+    # No history list must exist on the instance
+    assert not hasattr(tracker, "_total_ms_history"), (
+        "Phase 4: LatencyTracker must not keep an unbounded history list"
+    )
+    assert not hasattr(tracker, "history"), (
+        "Phase 4: LatencyTracker must not keep an unbounded history list"
+    )
+
+
+def test_latency_tracker_count_running_sum_latest():
+    """Verify constant-memory fields are updated correctly after each record_turn."""
+    from latency_logger import LatencyTracker
+
+    tracker = LatencyTracker()
+    assert tracker.turn_count == 0
+    assert tracker.latest_total_ms == 0.0
+    assert tracker.average_total_ms() == 0.0
+
+    tracker.record_turn(100.0)
+    assert tracker.turn_count == 1
+    assert tracker.latest_total_ms == 100.0
+    assert tracker.average_total_ms() == 100.0
+
+    tracker.record_turn(200.0)
+    assert tracker.turn_count == 2
+    assert tracker.latest_total_ms == 200.0
+    assert tracker.average_total_ms() == 150.0
+
+
+def test_latency_tracker_rolling_summary_silent_when_empty(capsys):
+    from latency_logger import LatencyTracker
+
+    tracker = LatencyTracker()
+    tracker.print_rolling_summary()
+    assert capsys.readouterr().out == ""
