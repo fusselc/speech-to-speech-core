@@ -79,6 +79,9 @@ WHISPER_LANGUAGE: str | None = LANGUAGE
 # NOTE: This setting is ignored when OpenVoice replaces pyttsx3.
 TTS_RATE: int = 180
 
+# Future-facing TTS backend selector (reserved for Piper/XTTS/OpenVoice swaps).
+TTS_ENGINE: str = "pyttsx3"
+
 # ---------------------------------------------------------------------------
 # Conversational loop settings
 # ---------------------------------------------------------------------------

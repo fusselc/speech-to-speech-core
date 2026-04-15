@@ -1,6 +1,10 @@
 """
 synthesize.py — Text-to-speech synthesis and audio playback.
 
+Next recommended upgrade: Piper TTS or XTTS-v2 (both drop-in compatible with
+the current ``speak_text`` / ``save_speech`` interface). OpenVoice example is
+already prepared below.
+
 Phase 1 uses pyttsx3 for fully offline, zero-latency TTS.
 pyttsx3 drives the OS-native speech engine (espeak on Linux,
 NSSpeechSynthesizer on macOS, SAPI5 on Windows) so no internet
