@@ -1,251 +1,200 @@
-# speech-to-speech-core
+# speech-to-speech-core 🎙️➡️🧠➡️🔊
 
-Phase 1 speech-to-speech AI core in Python: microphone recording, Whisper transcription, and text-to-speech playback for a modular low-latency voice pipeline.
+Local-first speech-to-speech prototype with modular audio capture, VAD, transcription, response generation, and playback.
 
----
+## Badges
 
-## Overview
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/fusselc/speech-to-speech-core/actions/workflows/ci.yml/badge.svg)](https://github.com/fusselc/speech-to-speech-core/actions/workflows/ci.yml)
+[![GitHub stars](https://img.shields.io/github/stars/fusselc/speech-to-speech-core?style=social)](https://github.com/fusselc/speech-to-speech-core/stargazers)
 
-This repository implements a single speech-to-speech turn:
+## Quick Start ⚡
 
-```text
-Microphone → WAV file → Whisper → transcript → responder → TTS → speaker
-```
-
-Each stage lives in its own module so components can be swapped or extended later—for example, streaming transcription, LLM-backed responses, or higher-quality speech synthesis—without changing the rest of the pipeline.
-
----
-
-## Design Goals
-
-* Keep each stage isolated in its own module
-* Keep functions small and readable
-* Centralize configuration in `src/config.py`
-* Make the pipeline runnable first, then extensible
-* Measure latency so performance is visible and improvable
-
----
-
-## Module Responsibilities
-
-* `audio_input.py` — microphone capture and WAV persistence
-* `transcribe.py` — Whisper speech-to-text
-* `responder.py` — simple text response generation
-* `synthesize.py` — local text-to-speech playback
-* `latency_logger.py` — per-stage and total latency timing
-* `utils.py` — shared helpers
-* `app.py` — orchestration of the full speech-to-speech turn
-
----
-
-## Repository Structure
-
-```text
-speech-to-speech-core/
-├── src/
-│   ├── app.py
-│   ├── config.py
-│   ├── audio_input.py
-│   ├── transcribe.py
-│   ├── responder.py
-│   ├── synthesize.py
-│   ├── latency_logger.py
-│   └── utils.py
-├── tests/
-│   ├── test_app.py
-│   ├── test_audio_input.py
-│   ├── test_latency_logger.py
-│   ├── test_responder.py
-│   ├── test_synthesize.py
-│   ├── test_transcribe.py
-│   └── test_utils.py
-├── recordings/
-├── outputs/
-├── requirements.txt
-└── README.md
-```
-
----
-
-## Requirements
-
-* Python 3.10 or newer
-* A working microphone
-* On Linux, `espeak` must be installed for `pyttsx3`
+### 1) Setup
 
 ```bash
-sudo apt-get install espeak
-```
-
----
-
-## Setup
-
-```bash
-# 1. Clone the repository
 git clone https://github.com/fusselc/speech-to-speech-core.git
 cd speech-to-speech-core
-
-# 2. Create and activate virtual environment
-python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-# macOS / Linux
-source .venv/bin/activate
-
-# 3. Install dependencies
-pip install -r requirements.txt
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+uv sync --group dev
 ```
 
-> **Note:** `openai-whisper` downloads model weights on first run (~150 MB for the default `base` model). Internet is only required for that initial download.
+### 2) Run with the CLI
 
----
+```bash
+speech-to-speech run --model small --device auto --streaming --loop
+```
 
-## Run
+### 3) Backward-compatible entry points
 
 ```bash
 python src/app.py
+python -m src.app
 ```
 
-When the program starts:
-
-1. Audio is recorded from microphone
-2. WAV file is saved
-3. Whisper transcribes speech
-4. A response is generated
-5. TTS speaks the response
-6. Latency is printed
-7. Rolling latency stats (latest turn + running average) are printed each turn
-
-By default the pipeline runs in loop mode.
-
-Press **Ctrl+C** to stop.
-
-To disable looping:
-
-Edit `src/config.py`
-
-```python
-LOOP_MODE = False
-```
-
----
-
-## Configuration
-
-All settings live in `src/config.py`.
-
-| Setting            | Default  | Description                   |
-| ------------------ | -------- | ----------------------------- |
-| `RECORD_DURATION`  | `5.0`    | Maximum recording duration in seconds |
-| `STREAM_CHUNK_SECONDS` | `0.2` | Streaming capture chunk size (seconds) |
-| `VAD_AMPLITUDE_THRESHOLD` | `500` | Voice activity amplitude threshold |
-| `VAD_SILENCE_SECONDS` | `1.0` | Trailing silence required to auto-stop |
-| `VAD_MIN_VOICE_CHUNKS` | `1` | Minimum voiced chunks before silence stop is allowed |
-| `WHISPER_MODEL`    | `"base"` | Whisper model size            |
-| `WHISPER_LANGUAGE` | `None`   | Auto-detect language          |
-| `TTS_RATE`         | `180`    | Speech speed                  |
-| `LOOP_MODE`        | `True`   | Repeat turns                  |
-| `MAX_TURNS`        | `0`      | Unlimited turns               |
-
----
-
-## Expected Output Example
-
-```text
-==================================================
-Speech-to-Speech Core | Phase 1
-==================================================
-[audio_input] Streaming capture started (max 5.0s, silence stop 1.0s)… speak now.
-[audio_input] Saved recording to: recordings/turn_0001.wav
-[transcribe] Transcript: What time is it?
-[responder] Response: I heard: What time is it?
-[synthesize] Speaking: I heard: What time is it?
-[latency] summary:
-[latency] recording_ms=5000.00
-[latency] save_ms=3.12
-[latency] transcription_ms=850.00
-[latency] response_ms=2.00
-[latency] synthesis_ms=120.00
-[latency] total_ms=5975.12
-==================================================
-Done.
-==================================================
-```
-
----
-
-## Latency Metrics
-
-Latency is tracked per stage:
-
-* `recording_ms`
-* `save_ms`
-* `transcription_ms`
-* `response_ms`
-* `synthesis_ms`
-* `total_ms`
-* `latest_turn_ms` (rolling summary)
-* `avg_turn_ms` (rolling summary)
-
-This makes optimization measurable.
-
----
-
-## Tests
-
-Run tests:
+## CLI Reference 🧭
 
 ```bash
+speech-to-speech run [OPTIONS]
+```
+
+| Flag | Type | Default | Description |
+| --- | --- | --- | --- |
+| `--model`, `-m` | `str` | `base` | faster-whisper model size (`tiny`, `base`, `small`, `medium`, `large`) |
+| `--device`, `-d` | `auto \| cpu \| cuda` | `auto` | Preferred transcription device |
+| `--streaming/--no-streaming` | `bool` | `--streaming` | Enable/disable streaming-oriented chunk capture |
+| `--loop/--no-loop` | `bool` | `--loop` | Continue listening after each response |
+| `--vad-sensitivity` | `float` | `0.5` | Silero VAD speech confidence threshold |
+| `--debug/--no-debug` | `bool` | `--no-debug` | Enable debug-level logs |
+
+Examples:
+
+```bash
+# Single turn, CPU only
+speech-to-speech run --no-loop --device cpu
+
+# Faster model startup and low latency on capable GPU
+speech-to-speech run --model small --device cuda --streaming --loop
+
+# More permissive speech detection
+speech-to-speech run --vad-sensitivity 0.35
+```
+
+## Configuration ⚙️
+
+All tunable values live in `src/config.py`.
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `SAMPLE_RATE` | `16000` | Microphone sampling rate in Hz |
+| `CHANNELS` | `1` | Mono capture channel count |
+| `RECORD_DURATION` | `5.0` | Max recording duration per turn (seconds) |
+| `USE_STREAMING` | `True` | Toggle streaming-style chunk capture |
+| `STREAMING_CHUNK_DURATION` | `0.5` | Chunk length in streaming mode (seconds) |
+| `VAD_CHUNK_SECONDS` | `0.5` | Silero VAD chunk duration baseline (seconds) |
+| `SILENCE_THRESHOLD` | `0.5` | VAD speech threshold (`0.0`–`1.0`) |
+| `VAD_SILENCE_SECONDS` | `1.0` | Required trailing silence before finalize |
+| `VAD_MIN_VOICE_CHUNKS` | `1` | Minimum voice chunks before silence stop can trigger |
+| `WHISPER_MODEL` | `"base"` | faster-whisper model size |
+| `WHISPER_DEVICE` | `"auto"` | Device preference (`auto`, `cpu`, `cuda`) |
+| `LANGUAGE` | `None` | Optional language hint for transcription |
+| `TTS_RATE` | `180` | pyttsx3 speaking rate |
+| `TTS_ENGINE` | `"pyttsx3"` | Future-facing TTS backend selector |
+| `LOOP_MODE` | `True` | Repeat turns continuously |
+| `MAX_TURNS` | `0` | Loop limit (`0` means unlimited) |
+
+## Architecture 🏗️
+
+```mermaid
+flowchart LR
+    A[AudioInput] --> B[VAD]
+    B --> C[faster-whisper]
+    C --> D[ResponseGenerator]
+    D --> E[Synthesize]
+    E --> F[Speaker]
+```
+
+Modules are intentionally isolated for easy swapping:
+- `audio_input.py`
+- `transcribe.py`
+- `responder.py`
+- `synthesize.py`
+- `app.py`
+
+## Expected Latency ⏱️
+
+Latency depends on model size, device, and microphone environment.
+
+Typical short-utterance ranges:
+
+| Stage | CPU (small model) | CUDA (small model) |
+| --- | --- | --- |
+| Recording + VAD stop | 0.8s–5.0s | 0.8s–5.0s |
+| Save WAV | 1–10 ms | 1–10 ms |
+| Transcription | 800–3000 ms | 200–1200 ms |
+| Response generation (echo) | <5 ms | <5 ms |
+| TTS synthesis/playback start | 50–300 ms | 50–300 ms |
+
+Tip: `--streaming` + smaller models usually produces the best perceived responsiveness.
+
+## Hardware Recommendations 💻
+
+| Profile | Recommended Hardware | Notes |
+| --- | --- | --- |
+| Lightweight dev | 4-core CPU, 8 GB RAM | Use `tiny`/`base`, CPU mode |
+| Balanced local app | 6–8 core CPU, 16 GB RAM | `base`/`small`, optional GPU |
+| Low-latency power user | NVIDIA GPU (8 GB+ VRAM), 16–32 GB RAM | `small`/`medium` with CUDA |
+| Heavier experimentation | NVIDIA GPU (12 GB+ VRAM), 32 GB RAM | Better for larger models and future LLM responder |
+
+## How to Swap Components 🔌
+
+The pipeline is designed for drop-in replacements:
+
+1. **Swap TTS backend (`synthesize.py`)**
+   - Keep `speak_text(text: str) -> None` and `save_speech(text: str) -> str`.
+   - Next recommended upgrade: **Piper TTS** or **XTTS-v2**.
+   - OpenVoice integration points are already documented in the module.
+
+2. **Swap response generator (`responder.py`)**
+   - Keep `ResponseGenerator` protocol and inject alternate backend.
+   - Replace deterministic echo with an LLM adapter while preserving interface.
+
+3. **Swap transcription (`transcribe.py`)**
+   - Keep `transcribe_file(file_path: str) -> str`.
+   - Preserve graceful fallback and error handling behavior.
+
+4. **Adjust runtime behavior (`config.py` + CLI)**
+   - Keep default values stable for backward compatibility.
+   - Add new flags in `src/cli.py` before plumbing into runtime.
+
+## Future Roadmap 🚀
+
+- Full streaming transcripts
+- Interrupt handling (barge-in)
+- Voice cloning workflows
+- Web UI for local/remote control
+
+## Benchmarks 📊
+
+Run a simple 10-turn latency benchmark:
+
+```bash
+python -m benchmarks.run_latency_benchmark
+```
+
+Optional turn override:
+
+```bash
+python -m benchmarks.run_latency_benchmark --turns 10
+```
+
+Results are written to:
+
+`benchmarks/latency_results.csv`
+
+## Troubleshooting 🛠️
+
+- Verify microphone permissions if recording fails.
+- Install `espeak` on Linux if pyttsx3 cannot speak.
+- First faster-whisper run needs network access to download model assets.
+- If CUDA OOM appears, switch to smaller models or `--device cpu`.
+- If VAD ends turns too early/late, tune `--vad-sensitivity`.
+
+## Contributing 🤝
+
+1. Create a virtual environment and install dev dependencies.
+2. Run validation before opening a PR:
+
+```bash
+ruff check .
+black --check .
+isort --check-only .
+mypy src tests
+pyright
 pytest tests/
+pre-commit run --all-files
 ```
 
-If needed install pytest:
-
-```bash
-pip install pytest
-```
-
-Tests are written to remain CI-friendly and avoid hardware dependency through mocking.
-
----
-
-## OpenVoice Integration (Future)
-
-`src/synthesize.py` already contains the correct integration point for replacing current TTS with OpenVoice later.
-
----
-
-## Extending the Pipeline
-
-| Goal                 | File             |
-| -------------------- | ---------------- |
-| Stream audio         | `audio_input.py` |
-| Faster transcription | `transcribe.py`  |
-| LLM responses        | `responder.py`   |
-| Better TTS           | `synthesize.py`  |
-| Config changes       | `config.py`      |
-
----
-
-## Troubleshooting
-
-* Verify microphone permissions if recording fails
-* Install `espeak` if Linux TTS fails
-* Whisper first run requires model download
-* Use smaller Whisper models if slow
-
----
-
-## Roadmap
-
-Planned next steps:
-
-* Faster transcription backend
-* Streaming audio input
-* Advanced response generation
-* Higher quality speech synthesis
-* Interrupt handling
-* OpenVoice integration
+3. Keep modules small, interfaces stable, and docs/tests updated with behavior changes.

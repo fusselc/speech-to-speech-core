@@ -20,13 +20,20 @@ CHANNELS: int = 1
 # earlier when voice activity detection sees trailing silence).
 RECORD_DURATION: float = 5.0
 
-# Streaming chunk duration in seconds. Smaller chunks improve VAD responsiveness
-# but increase per-chunk overhead (typical range: 0.05–0.5s).
-STREAM_CHUNK_SECONDS: float = 0.2
+# When True, audio capture uses streaming-friendly chunk settings.
+USE_STREAMING: bool = True
 
-# Voice activity threshold on raw int16 amplitude (range: 0–32767).
-# 500 is a conservative default that usually filters low background noise.
-VAD_AMPLITUDE_THRESHOLD: int = 500
+# Chunk duration for future streaming handoff to incremental transcription.
+STREAMING_CHUNK_DURATION: float = 0.5
+
+# VAD chunk duration in seconds. Silero works well with 0.5–1.0 second chunks.
+VAD_CHUNK_SECONDS: float = 0.5
+
+# Silero VAD speech threshold. Higher values are stricter (range ~0.0–1.0).
+SILENCE_THRESHOLD: float = 0.5
+
+# Backward-compatible alias for older config references.
+STREAM_CHUNK_SECONDS: float = VAD_CHUNK_SECONDS
 
 # Stop recording once this many seconds of silence have followed detected speech.
 VAD_SILENCE_SECONDS: float = 1.0
@@ -55,8 +62,14 @@ OUTPUTS_DIR: str = os.path.join(_ROOT, "outputs")
 # "base" is a good balance of speed and accuracy for local use.
 WHISPER_MODEL: str = "base"
 
+# Whisper compute device preference: "auto", "cpu", or "cuda".
+WHISPER_DEVICE: str = "auto"
+
 # Language hint (None = auto-detect, or e.g. "en" to force English)
-WHISPER_LANGUAGE: str | None = None
+LANGUAGE: str | None = None
+
+# Backward-compatible alias.
+WHISPER_LANGUAGE: str | None = LANGUAGE
 
 # ---------------------------------------------------------------------------
 # Text-to-speech settings
@@ -65,6 +78,9 @@ WHISPER_LANGUAGE: str | None = None
 # Speech rate for pyttsx3 (words per minute).
 # NOTE: This setting is ignored when OpenVoice replaces pyttsx3.
 TTS_RATE: int = 180
+
+# Future-facing TTS backend selector (reserved for Piper/XTTS/OpenVoice swaps).
+TTS_ENGINE: str = "pyttsx3"
 
 # ---------------------------------------------------------------------------
 # Conversational loop settings

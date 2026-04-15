@@ -21,7 +21,7 @@ def test_measure_records_elapsed_time_ms():
     assert abs(logger._stages_ms["recording_ms"] - 800.0) < 1e-9
 
 
-def test_print_summary_includes_required_keys(capsys):
+def test_print_summary_includes_required_keys():
     from latency_logger import LatencyLogger
 
     with patch("latency_logger.time.perf_counter", return_value=2.0):
@@ -33,10 +33,13 @@ def test_print_summary_includes_required_keys(capsys):
         "response_ms": 4.0,
         "synthesis_ms": 5.0,
     }
-    with patch("latency_logger.time.perf_counter", return_value=2.5):
+    with (
+        patch("latency_logger.time.perf_counter", return_value=2.5),
+        patch("latency_logger.logger.info") as mock_info,
+    ):
         logger.print_summary()
 
-    out = capsys.readouterr().out
+    out = " ".join(str(call.args[0]) for call in mock_info.call_args_list)
     for key in (
         "recording_ms",
         "save_ms",
@@ -48,19 +51,22 @@ def test_print_summary_includes_required_keys(capsys):
         assert key in out
 
 
-def test_latency_tracker_prints_average_and_latest(capsys):
+def test_latency_tracker_prints_average_and_latest():
     from latency_logger import LatencyTracker
 
     tracker = LatencyTracker()
     tracker.record_turn(10.0)
     tracker.record_turn(30.0)
-    tracker.print_rolling_summary()
-    out = capsys.readouterr().out
-
-    assert "rolling_summary" in out
-    assert "latest_turn_ms=30.00" in out
-    assert "avg_turn_ms=20.00" in out
-    assert "turns=2" in out
+    with patch("latency_logger.logger.info") as mock_info:
+        tracker.print_rolling_summary()
+    calls = mock_info.call_args_list
+    assert "rolling_summary" in str(calls[0].args[0])
+    assert calls[1].args[0] == "[latency] latest_turn_ms={:.2f}"
+    assert calls[1].args[1] == 30.0
+    assert calls[2].args[0] == "[latency] avg_turn_ms={:.2f}"
+    assert calls[2].args[1] == 20.0
+    assert calls[3].args[0] == "[latency] turns={}"
+    assert calls[3].args[1] == 2
 
 
 def test_latency_tracker_structured_metrics():
@@ -100,12 +106,16 @@ def test_latency_tracker_does_not_store_history():
         tracker.record_turn(ms)
 
     # No history list must exist on the instance
-    assert not hasattr(tracker, "_total_ms_history"), (
-        "Phase 4: LatencyTracker must not keep an unbounded history list"
-    )
-    assert not hasattr(tracker, "history"), (
-        "Phase 4: LatencyTracker must not keep an unbounded history list"
-    )
+    has_total_history = hasattr(tracker, "_total_ms_history")
+    has_history = hasattr(tracker, "history")
+    if has_total_history:
+        raise AssertionError(
+            "Phase 4: LatencyTracker must not keep an unbounded history list"
+        )
+    if has_history:
+        raise AssertionError(
+            "Phase 4: LatencyTracker must not keep an unbounded history list"
+        )
 
 
 def test_latency_tracker_count_running_sum_latest():
@@ -128,9 +138,10 @@ def test_latency_tracker_count_running_sum_latest():
     assert tracker.average_total_ms() == 150.0
 
 
-def test_latency_tracker_rolling_summary_silent_when_empty(capsys):
+def test_latency_tracker_rolling_summary_silent_when_empty():
     from latency_logger import LatencyTracker
 
     tracker = LatencyTracker()
-    tracker.print_rolling_summary()
-    assert capsys.readouterr().out == ""
+    with patch("latency_logger.logger.info") as mock_info:
+        tracker.print_rolling_summary()
+    mock_info.assert_not_called()

@@ -138,6 +138,7 @@ celerybeat.pid
 .env
 .envrc
 .venv
+.venv/
 env/
 venv/
 ENV/
@@ -209,6 +210,8 @@ __marimo__/
 # Speech-to-speech runtime artifacts
 recordings/*.wav
 outputs/*.wav
+*.csv
+benchmarks/*.csv
 
 # Whisper model cache
 ~/.cache/whisper/

@@ -5,13 +5,12 @@ These tests are intentionally focused on logic only and do not require
 audio hardware, Whisper, or TTS to be installed.
 """
 
-import sys
 import os
+import sys
 
 # Make src/ importable when running pytest from the project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-import pytest
 from responder import generate_response
 
 
