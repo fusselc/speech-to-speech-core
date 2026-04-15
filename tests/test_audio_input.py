@@ -76,7 +76,7 @@ class TestRecordAudio:
         with (
             patch("sounddevice.InputStream", return_value=stream),
             patch("audio_input._resolve_vad_chunk_seconds", return_value=0.2),
-            patch("audio_input.VAD_SILENCE_SECONDS", 0.4),
+            patch("audio_input.config.VAD_SILENCE_SECONDS", 0.4),
             patch(
                 "audio_input.is_speech_chunk", side_effect=[True, False, False, True]
             ),
@@ -99,7 +99,7 @@ class TestRecordAudio:
         with (
             patch("sounddevice.InputStream", return_value=stream),
             patch("audio_input._resolve_vad_chunk_seconds", return_value=0.2),
-            patch("audio_input.VAD_SILENCE_SECONDS", 0.2),
+            patch("audio_input.config.VAD_SILENCE_SECONDS", 0.2),
             patch("audio_input.is_speech_chunk", side_effect=[False, False]),
         ):
             from audio_input import record_audio
@@ -215,7 +215,7 @@ class TestRecordToFile:
         with (
             patch("audio_input.record_audio", return_value=mock_samples),
             patch("audio_input.save_wav", side_effect=fake_save),
-            patch("audio_input.RECORDINGS_DIR", str(tmp_path)),
+            patch("audio_input.config.RECORDINGS_DIR", str(tmp_path)),
         ):
             from audio_input import record_to_file
 
@@ -234,7 +234,7 @@ class TestRecordToFile:
         with (
             patch("audio_input.record_audio", return_value=mock_samples),
             patch("audio_input.save_wav", side_effect=fake_save),
-            patch("audio_input.RECORDINGS_DIR", str(tmp_path)),
+            patch("audio_input.config.RECORDINGS_DIR", str(tmp_path)),
         ):
             from audio_input import record_to_file
 

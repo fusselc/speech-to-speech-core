@@ -33,6 +33,8 @@ Each stage lives in its own module so components can be swapped or extended late
 * `responder.py` — simple text response generation
 * `synthesize.py` — local text-to-speech playback
 * `latency_logger.py` — per-stage and total latency timing
+* `logging_config.py` — centralized loguru formatting/configuration
+* `cli.py` — Typer CLI entry point
 * `utils.py` — shared helpers
 * `app.py` — orchestration of the full speech-to-speech turn
 
@@ -50,6 +52,8 @@ speech-to-speech-core/
 │   ├── responder.py
 │   ├── synthesize.py
 │   ├── latency_logger.py
+│   ├── logging_config.py
+│   ├── cli.py
 │   └── utils.py
 ├── tests/
 │   ├── test_app.py
@@ -124,8 +128,30 @@ pip install -e ".[dev]"
 
 ## Run
 
+### CLI (recommended)
+
+After `uv sync` or `pip install -e ".[dev]"`, run:
+
+```bash
+speech-to-speech run --model small --device auto --streaming --loop
+```
+
+Flags:
+
+| Flag | Type | Default | Description |
+| --- | --- | --- | --- |
+| `--model`, `-m` | `str` | `base` | faster-whisper model size |
+| `--device`, `-d` | `auto\|cpu\|cuda` | `auto` | STT device preference |
+| `--streaming/--no-streaming` | `bool` | `--streaming` | Enable streaming-oriented chunk handling |
+| `--loop/--no-loop` | `bool` | `--loop` | Keep listening after each response |
+| `--vad-sensitivity` | `float` | `0.5` | Silero VAD speech threshold |
+| `--debug/--no-debug` | `bool` | `--no-debug` | Enable debug-level logs |
+
+### Backward-compatible Python entry points
+
 ```bash
 python src/app.py
+python -m src.app
 ```
 
 When the program starts:
@@ -135,19 +161,17 @@ When the program starts:
 3. faster-whisper transcribes speech
 4. A response is generated
 5. TTS speaks the response
-6. Latency is printed
-7. Rolling latency stats (latest turn + running average) are printed each turn
+6. Latency is logged
+7. Rolling latency stats (latest turn + running average) are logged each turn
 
 By default the pipeline runs in loop mode.
 
 Press **Ctrl+C** to stop.
 
-To disable looping:
+To disable looping quickly from CLI:
 
-Edit `src/config.py`
-
-```python
-LOOP_MODE = False
+```bash
+speech-to-speech run --no-loop
 ```
 
 ---
@@ -166,6 +190,7 @@ All settings live in `src/config.py`.
 | `VAD_SILENCE_SECONDS` | `1.0` | Trailing silence required to auto-stop |
 | `VAD_MIN_VOICE_CHUNKS` | `1` | Minimum voiced chunks before silence stop is allowed |
 | `WHISPER_MODEL`    | `"base"` | faster-whisper model size     |
+| `WHISPER_DEVICE`   | `"auto"` | Preferred device (`auto`, `cpu`, `cuda`) |
 | `LANGUAGE`         | `None`   | Auto-detect language          |
 | `TTS_RATE`         | `180`    | Speech speed                  |
 | `LOOP_MODE`        | `True`   | Repeat turns                  |
@@ -173,27 +198,15 @@ All settings live in `src/config.py`.
 
 ---
 
-## Expected Output Example
+## Logging Output Example
 
 ```text
-==================================================
-Speech-to-Speech Core | Phase 1
-==================================================
-[audio_input] Streaming capture started (max 5.0s, silence stop 1.0s)… speak now.
-[audio_input] Saved recording to: recordings/turn_0001.wav
-[transcribe] Transcript: What time is it?
-[responder] Response: I heard: What time is it?
-[synthesize] Speaking: I heard: What time is it?
-[latency] summary:
-[latency] recording_ms=5000.00
-[latency] save_ms=3.12
-[latency] transcription_ms=850.00
-[latency] response_ms=2.00
-[latency] synthesis_ms=120.00
-[latency] total_ms=5975.12
-==================================================
-Done.
-==================================================
+2026-04-15 21:45:01.102 | INFO     | app:run_pipeline:32 - ==================================================
+2026-04-15 21:45:01.103 | INFO     | audio_input:record_until_silence:138 - Streaming capture started (max 5.0s, silence stop 1.0s, chunk 0.50s)... speak now.
+2026-04-15 21:45:06.182 | INFO     | transcribe:transcribe_file:104 - Transcription completed in 842.17 ms.
+2026-04-15 21:45:06.182 | INFO     | responder:generate:29 - Response generated: 'I heard: what time is it?'
+2026-04-15 21:45:06.184 | INFO     | latency_logger:print_summary:31 - [latency] summary:
+2026-04-15 21:45:06.184 | INFO     | latency_logger:print_summary:49 - [latency] total_ms=5974.88
 ```
 
 ---
@@ -212,6 +225,12 @@ Latency is tracked per stage:
 * `avg_turn_ms` (rolling summary)
 
 This makes optimization measurable.
+
+Typical local expectations (hardware-dependent):
+
+* `small` model on CPU: transcription may be around ~1–3s per short utterance
+* `small` model on CUDA: transcription often drops significantly below CPU latency
+* VAD chunking at `0.5s` improves responsiveness for future streaming upgrades
 
 ---
 

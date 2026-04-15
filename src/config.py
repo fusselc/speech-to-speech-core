@@ -62,6 +62,9 @@ OUTPUTS_DIR: str = os.path.join(_ROOT, "outputs")
 # "base" is a good balance of speed and accuracy for local use.
 WHISPER_MODEL: str = "base"
 
+# Whisper compute device preference: "auto", "cpu", or "cuda".
+WHISPER_DEVICE: str = "auto"
+
 # Language hint (None = auto-detect, or e.g. "en" to force English)
 LANGUAGE: str | None = None
 

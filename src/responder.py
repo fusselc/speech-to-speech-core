@@ -8,6 +8,8 @@ later without changing app-level call sites.
 
 from typing import Protocol
 
+from loguru import logger
+
 
 class ResponseGenerator(Protocol):
     """Interface for response generation backends."""
@@ -24,7 +26,7 @@ class EchoResponseGenerator:
         if not cleaned:
             return "Sorry, I didn't catch that. Could you please repeat?"
         response = f"I heard: {cleaned}"
-        print(f"[responder] Response: {response!r}")
+        logger.info("Response generated: {!r}", response)
         return response
 
 

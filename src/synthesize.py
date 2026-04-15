@@ -21,6 +21,7 @@ Future streaming integration point:
 import os
 
 import pyttsx3
+from loguru import logger
 
 from config import OUTPUTS_DIR, TTS_RATE
 from utils import ensure_dir, timestamped_filename
@@ -39,8 +40,16 @@ def _get_engine() -> pyttsx3.Engine:
     """
     global _engine
     if _engine is None:
-        _engine = pyttsx3.init()
-        _engine.setProperty("rate", TTS_RATE)
+        try:
+            _engine = pyttsx3.init()
+            _engine.setProperty("rate", TTS_RATE)
+            logger.info("TTS engine initialized (rate={}).", TTS_RATE)
+        except Exception:
+            logger.exception(
+                "Text-to-speech engine failed to initialize. "
+                "Check system TTS dependencies and audio permissions."
+            )
+            raise
     return _engine
 
 
@@ -58,10 +67,16 @@ def speak_text(text: str) -> None:
     #   converter.convert(audio_src_path, src_se, tgt_se, output_path)
     #   then play output_path with sounddevice or pygame.
     """
-    engine = _get_engine()
-    print(f"[synthesize] Speaking: {text!r}")
-    engine.say(text)
-    engine.runAndWait()
+    try:
+        engine = _get_engine()
+        logger.info("Speaking text.")
+        engine.say(text)
+        engine.runAndWait()
+    except Exception:
+        logger.exception(
+            "TTS playback failed. Please check your audio device and TTS backend."
+        )
+        raise
 
 
 def save_speech(text: str) -> str:
@@ -75,10 +90,14 @@ def save_speech(text: str) -> str:
     Returns:
         Absolute path to the saved audio file.
     """
-    engine = _get_engine()
-    filename = timestamped_filename("response", "wav")
-    filepath = os.path.join(ensure_dir(OUTPUTS_DIR), filename)
-    engine.save_to_file(text, filepath)
-    engine.runAndWait()
-    print(f"[synthesize] Saved response audio to: {filepath}")
-    return filepath
+    try:
+        engine = _get_engine()
+        filename = timestamped_filename("response", "wav")
+        filepath = os.path.join(ensure_dir(OUTPUTS_DIR), filename)
+        engine.save_to_file(text, filepath)
+        engine.runAndWait()
+        logger.info("Saved response audio to: {}", filepath)
+        return filepath
+    except Exception:
+        logger.exception("Failed to save TTS audio output.")
+        raise

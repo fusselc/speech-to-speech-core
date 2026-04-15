@@ -22,6 +22,9 @@ dependencies = [
   "rich>=13.7.1",
 ]
 
+[project.scripts]
+speech-to-speech = "cli:cli"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.2.0",

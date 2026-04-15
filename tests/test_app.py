@@ -59,7 +59,7 @@ class TestRunPipeline:
         # Ensure no exceptions are raised during a normal run
         self._run_with_mocks()
 
-    def test_pipeline_handles_microphone_failure_without_crash(self, capsys):
+    def test_pipeline_handles_microphone_failure_without_crash(self):
         with (
             patch("app.record_audio", side_effect=RuntimeError("mic error")),
             patch("app.build_recording_filepath"),
@@ -67,14 +67,15 @@ class TestRunPipeline:
             patch("app.transcribe_file"),
             patch("app.generate_response"),
             patch("app.speak_text"),
+            patch("app.logger.error") as mock_error,
         ):
             from app import run_pipeline
 
             run_pipeline()
 
-        out = capsys.readouterr().out
-        assert "Recording failed" in out
-        assert "Skipping turn safely" in out
+        assert any(
+            "Skipping turn safely." in str(call) for call in mock_error.call_args_list
+        )
 
     def test_all_steps_called_in_order(self):
         """Verify the four pipeline steps fire in the correct sequence."""
@@ -113,18 +114,10 @@ class TestRunPipeline:
 
         assert call_order == ["record", "save", "transcribe", "respond", "speak"]
 
-    def test_latency_summary_is_printed(self, capsys):
-        self._run_with_mocks()
-        out = capsys.readouterr().out
-        for key in (
-            "recording_ms",
-            "save_ms",
-            "transcription_ms",
-            "response_ms",
-            "synthesis_ms",
-            "total_ms",
-        ):
-            assert key in out
+    def test_latency_summary_is_printed(self):
+        with patch("app.LatencyLogger.print_summary") as mock_summary:
+            self._run_with_mocks()
+        mock_summary.assert_called_once()
 
     def test_each_pipeline_stage_executes_once(self):
         stage_counts = {
@@ -174,7 +167,7 @@ class TestRunPipeline:
             "speak": 1,
         }
 
-    def test_whitespace_transcript_skips_response_and_synthesis(self, capsys):
+    def test_whitespace_transcript_skips_response_and_synthesis(self):
         with (
             patch("app.record_audio", return_value=[1, 2, 3]),
             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
@@ -182,6 +175,7 @@ class TestRunPipeline:
             patch("app.transcribe_file", return_value="   "),
             patch("app.generate_response") as mock_respond,
             patch("app.speak_text") as mock_speak,
+            patch("app.logger.warning") as mock_warning,
         ):
             from app import run_pipeline
 
@@ -189,8 +183,10 @@ class TestRunPipeline:
 
         mock_respond.assert_not_called()
         mock_speak.assert_not_called()
-        out = capsys.readouterr().out
-        assert "Empty transcript detected" in out
+        assert any(
+            "Empty transcript detected" in str(call)
+            for call in mock_warning.call_args_list
+        )
 
 
 class TestRunApp:
@@ -234,7 +230,7 @@ class TestRunApp:
             patches[3],
             patches[4],
             patches[5],
-            patch("app.LOOP_MODE", False),
+            patch("app.config.LOOP_MODE", False),
         ):
             from app import run_app
 
@@ -252,16 +248,16 @@ class TestRunApp:
             patches[3],
             patches[4],
             patches[5],
-            patch("app.LOOP_MODE", True),
-            patch("app.MAX_TURNS", 3),
+            patch("app.config.LOOP_MODE", True),
+            patch("app.config.MAX_TURNS", 3),
         ):
             from app import run_app
 
             run_app()
         assert counter.get("turns", 0) == 3
 
-    def test_run_app_exits_gracefully_on_keyboard_interrupt(self, capsys):
-        """run_app catches KeyboardInterrupt and prints a goodbye message."""
+    def test_run_app_exits_gracefully_on_keyboard_interrupt(self):
+        """run_app catches KeyboardInterrupt and logs a goodbye message."""
         call_count = [0]
 
         def fake_speak(text):
@@ -276,18 +272,18 @@ class TestRunApp:
             patch("app.transcribe_file", return_value="hello"),
             patch("app.generate_response", return_value="I heard: hello"),
             patch("app.speak_text", side_effect=fake_speak),
-            patch("app.LOOP_MODE", True),
-            patch("app.MAX_TURNS", 0),
+            patch("app.config.LOOP_MODE", True),
+            patch("app.config.MAX_TURNS", 0),
+            patch("app.logger.info") as mock_info,
         ):
             from app import run_app
 
             run_app()  # must not propagate KeyboardInterrupt
 
-        out = capsys.readouterr().out
-        assert "Goodbye" in out
+        assert any("Goodbye" in str(call) for call in mock_info.call_args_list)
 
-    def test_run_app_prints_separator_between_turns(self, capsys):
-        """A turn separator is printed before every turn after the first."""
+    def test_run_app_prints_separator_between_turns(self):
+        """A turn separator is logged before every turn after the first."""
         counter = [0]
 
         def fake_speak(text):
@@ -300,18 +296,18 @@ class TestRunApp:
             patch("app.transcribe_file", return_value="hello"),
             patch("app.generate_response", return_value="I heard: hello"),
             patch("app.speak_text", side_effect=fake_speak),
-            patch("app.LOOP_MODE", True),
-            patch("app.MAX_TURNS", 2),
+            patch("app.config.LOOP_MODE", True),
+            patch("app.config.MAX_TURNS", 2),
+            patch("app.logger.info") as mock_info,
         ):
             from app import run_app
 
             run_app()
 
-        out = capsys.readouterr().out
-        assert "-" * 50 in out
+        assert any("-" * 50 in str(call) for call in mock_info.call_args_list)
 
-    def test_run_app_latency_logged_each_turn(self, capsys):
-        """Latency summary is printed once per turn in loop mode."""
+    def test_run_app_latency_logged_each_turn(self):
+        """Latency summary is produced once per turn in loop mode."""
         with (
             patch("app.record_audio", return_value=[1, 2, 3]),
             patch("app.build_recording_filepath", return_value="/tmp/fake.wav"),
@@ -319,13 +315,12 @@ class TestRunApp:
             patch("app.transcribe_file", return_value="hello"),
             patch("app.generate_response", return_value="I heard: hello"),
             patch("app.speak_text"),
-            patch("app.LOOP_MODE", True),
-            patch("app.MAX_TURNS", 2),
+            patch("app.config.LOOP_MODE", True),
+            patch("app.config.MAX_TURNS", 2),
+            patch("app.LatencyLogger.print_summary") as mock_summary,
         ):
             from app import run_app
 
             run_app()
 
-        out = capsys.readouterr().out
-        # total_ms should appear twice (once per turn)
-        assert out.count("total_ms") == 2
+        assert mock_summary.call_count == 2

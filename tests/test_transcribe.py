@@ -27,7 +27,7 @@ class TestTranscribeFile:
         mock_model = self._make_mock_model(["  hello", "world  "])
         with (
             patch("transcribe._get_model", return_value=mock_model),
-            patch("transcribe.LANGUAGE", None),
+            patch("transcribe.config.LANGUAGE", None),
         ):
             import transcribe
 
@@ -39,7 +39,7 @@ class TestTranscribeFile:
         mock_model = self._make_mock_model(["test"])
         with (
             patch("transcribe._get_model", return_value=mock_model),
-            patch("transcribe.LANGUAGE", None),
+            patch("transcribe.config.LANGUAGE", None),
         ):
             import transcribe
 
@@ -54,7 +54,7 @@ class TestTranscribeFile:
         mock_model = self._make_mock_model(["bonjour"])
         with (
             patch("transcribe._get_model", return_value=mock_model),
-            patch("transcribe.LANGUAGE", "fr"),
+            patch("transcribe.config.LANGUAGE", "fr"),
         ):
             import transcribe
 
@@ -67,7 +67,7 @@ class TestTranscribeFile:
         mock_model = self._make_mock_model(["hello"])
         with (
             patch("transcribe._get_model", return_value=mock_model),
-            patch("transcribe.LANGUAGE", None),
+            patch("transcribe.config.LANGUAGE", None),
         ):
             import transcribe
 
@@ -80,7 +80,7 @@ class TestTranscribeFile:
         mock_model = self._make_mock_model(["anything"])
         with (
             patch("transcribe._get_model", return_value=mock_model),
-            patch("transcribe.LANGUAGE", None),
+            patch("transcribe.config.LANGUAGE", None),
         ):
             import transcribe
 
