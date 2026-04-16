@@ -2,43 +2,25 @@
 
 Local-first speech-to-speech prototype with modular audio capture, VAD, transcription, response generation, and playback.
 
-## Badges
+<img src="https://img.shields.io/badge/python-3.10%2B-blue">
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
+<a href="https://github.com/fusselc/speech-to-speech-core/actions/workflows/ci.yml"><img src="https://github.com/fusselc/speech-to-speech-core/actions/workflows/ci.yml/badge.svg"></a>
 
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![CI](https://github.com/fusselc/speech-to-speech-core/actions/workflows/ci.yml/badge.svg)](https://github.com/fusselc/speech-to-speech-core/actions/workflows/ci.yml)
-[![GitHub stars](https://img.shields.io/github/stars/fusselc/speech-to-speech-core?style=social)](https://github.com/fusselc/speech-to-speech-core/stargazers)
-
-## Quick Start ⚡
-
-### 1) Setup
+### Quick Start
 
 ```bash
+# 1. Clone &amp; install
 git clone https://github.com/fusselc/speech-to-speech-core.git
 cd speech-to-speech-core
-uv venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-uv sync --group dev
+uv sync --dev          # or: pip install -e ".[dev]"
+
+# 2. Run (recommended)
+speech-to-speech run --model base --streaming --loop
 ```
 
-### 2) Run with the CLI
-
-```bash
-speech-to-speech run --model small --device auto --streaming --loop
-```
-
-### 3) Backward-compatible entry points
-
-```bash
-python src/app.py
-python -m src.app
-```
+Press Ctrl+C to exit.
 
 ## CLI Reference 🧭
-
-```bash
-speech-to-speech run [OPTIONS]
-```
 
 | Flag | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -52,14 +34,7 @@ speech-to-speech run [OPTIONS]
 Examples:
 
 ```bash
-# Single turn, CPU only
-speech-to-speech run --no-loop --device cpu
-
-# Faster model startup and low latency on capable GPU
-speech-to-speech run --model small --device cuda --streaming --loop
-
-# More permissive speech detection
-speech-to-speech run --vad-sensitivity 0.35
+speech-to-speech run --model small --device auto --streaming --loop --debug
 ```
 
 ## Configuration ⚙️

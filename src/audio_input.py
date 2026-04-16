@@ -57,10 +57,12 @@ def _resolve_vad_device() -> str:
     """Resolve VAD runtime device preference for logging/fallback messages."""
     preferred = config.WHISPER_DEVICE.lower()
     if preferred == "cuda" and not torch.cuda.is_available():
-        logger.warning("CUDA requested for VAD but unavailable; falling back to CPU.")
+        logger.warning(
+            "CUDA requested for VAD, but Silero VAD ONNX always runs on CPU."
+        )
         return "cpu"
     if preferred == "auto" and torch.cuda.is_available():
-        logger.info("Silero VAD ONNX is running on CPU (CUDA fallback applied).")
+        logger.info("Silero VAD ONNX is running on CPU (CUDA not used for VAD)")
     return "cpu"
 
 

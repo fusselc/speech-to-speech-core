@@ -8,7 +8,7 @@ import sys
 from loguru import logger
 
 # ---------------------------------------------------------------------------
-# Path setup — allow `python src/app.py` from the project root.
+# Path setup for direct module execution from the project root.
 # ---------------------------------------------------------------------------
 _SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SRC_DIR not in sys.path:

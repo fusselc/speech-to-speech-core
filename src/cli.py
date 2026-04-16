@@ -10,7 +10,7 @@ import typer
 from loguru import logger
 
 # ---------------------------------------------------------------------------
-# Path setup — allow `python src/cli.py` and package entrypoint compatibility.
+# Path setup for direct module execution and package entrypoint compatibility.
 # ---------------------------------------------------------------------------
 _SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SRC_DIR not in sys.path:
@@ -27,7 +27,7 @@ cli = typer.Typer(
 
 
 @cli.callback()
-def main() -> None:
+def _root() -> None:
     """Root CLI command group."""
 
 
@@ -95,5 +95,10 @@ def run(
     _run_app(loop_mode=config.LOOP_MODE, max_turns=config.MAX_TURNS)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Console script entrypoint."""
     cli()
+
+
+if __name__ == "__main__":
+    main()
